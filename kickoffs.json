@@ -1,0 +1,362 @@
+{
+  "A1": {
+    "kickoff": "2026-06-11T19:00:00Z",
+    "location": "Mexico City Stadium",
+    "inverted": false
+  },
+  "A2": {
+    "kickoff": "2026-06-19T01:00:00Z",
+    "location": "Guadalajara Stadium",
+    "inverted": false
+  },
+  "A3": {
+    "kickoff": "2026-06-25T01:00:00Z",
+    "location": "Mexico City Stadium",
+    "inverted": true
+  },
+  "A4": {
+    "kickoff": "2026-06-25T01:00:00Z",
+    "location": "Monterrey Stadium",
+    "inverted": false
+  },
+  "A5": {
+    "kickoff": "2026-06-18T16:00:00Z",
+    "location": "Atlanta Stadium",
+    "inverted": true
+  },
+  "A6": {
+    "kickoff": "2026-06-12T02:00:00Z",
+    "location": "Guadalajara Stadium",
+    "inverted": false
+  },
+  "B1": {
+    "kickoff": "2026-06-12T19:00:00Z",
+    "location": "Toronto Stadium",
+    "inverted": false
+  },
+  "B2": {
+    "kickoff": "2026-06-18T22:00:00Z",
+    "location": "BC Place Vancouver",
+    "inverted": false
+  },
+  "B3": {
+    "kickoff": "2026-06-24T19:00:00Z",
+    "location": "BC Place Vancouver",
+    "inverted": true
+  },
+  "B4": {
+    "kickoff": "2026-06-13T19:00:00Z",
+    "location": "San Francisco Bay Area Stadium",
+    "inverted": true
+  },
+  "B5": {
+    "kickoff": "2026-06-18T19:00:00Z",
+    "location": "Los Angeles Stadium",
+    "inverted": false
+  },
+  "B6": {
+    "kickoff": "2026-06-24T19:00:00Z",
+    "location": "Seattle Stadium",
+    "inverted": true
+  },
+  "C1": {
+    "kickoff": "2026-06-13T22:00:00Z",
+    "location": "New York/New Jersey Stadium",
+    "inverted": false
+  },
+  "C2": {
+    "kickoff": "2026-06-24T22:00:00Z",
+    "location": "Miami Stadium",
+    "inverted": true
+  },
+  "C3": {
+    "kickoff": "2026-06-20T01:00:00Z",
+    "location": "Philadelphia Stadium",
+    "inverted": false
+  },
+  "C4": {
+    "kickoff": "2026-06-19T22:00:00Z",
+    "location": "Boston Stadium",
+    "inverted": true
+  },
+  "C5": {
+    "kickoff": "2026-06-24T22:00:00Z",
+    "location": "Atlanta Stadium",
+    "inverted": false
+  },
+  "C6": {
+    "kickoff": "2026-06-14T01:00:00Z",
+    "location": "Boston Stadium",
+    "inverted": true
+  },
+  "D1": {
+    "kickoff": "2026-06-19T19:00:00Z",
+    "location": "Seattle Stadium",
+    "inverted": false
+  },
+  "D2": {
+    "kickoff": "2026-06-13T01:00:00Z",
+    "location": "Los Angeles Stadium",
+    "inverted": false
+  },
+  "D3": {
+    "kickoff": "2026-06-26T02:00:00Z",
+    "location": "Los Angeles Stadium",
+    "inverted": true
+  },
+  "D4": {
+    "kickoff": "2026-06-26T02:00:00Z",
+    "location": "San Francisco Bay Area Stadium",
+    "inverted": true
+  },
+  "D5": {
+    "kickoff": "2026-06-14T04:00:00Z",
+    "location": "BC Place Vancouver",
+    "inverted": false
+  },
+  "D6": {
+    "kickoff": "2026-06-20T04:00:00Z",
+    "location": "San Francisco Bay Area Stadium",
+    "inverted": true
+  },
+  "E1": {
+    "kickoff": "2026-06-25T20:00:00Z",
+    "location": "New York/New Jersey Stadium",
+    "inverted": true
+  },
+  "E2": {
+    "kickoff": "2026-06-20T20:00:00Z",
+    "location": "Toronto Stadium",
+    "inverted": false
+  },
+  "E3": {
+    "kickoff": "2026-06-14T17:00:00Z",
+    "location": "Houston Stadium",
+    "inverted": false
+  },
+  "E4": {
+    "kickoff": "2026-06-14T23:00:00Z",
+    "location": "Philadelphia Stadium",
+    "inverted": true
+  },
+  "E5": {
+    "kickoff": "2026-06-21T00:00:00Z",
+    "location": "Kansas City Stadium",
+    "inverted": false
+  },
+  "E6": {
+    "kickoff": "2026-06-25T20:00:00Z",
+    "location": "Philadelphia Stadium",
+    "inverted": true
+  },
+  "F1": {
+    "kickoff": "2026-06-14T20:00:00Z",
+    "location": "Dallas Stadium",
+    "inverted": false
+  },
+  "F2": {
+    "kickoff": "2026-06-25T23:00:00Z",
+    "location": "Kansas City Stadium",
+    "inverted": true
+  },
+  "F3": {
+    "kickoff": "2026-06-20T17:00:00Z",
+    "location": "Houston Stadium",
+    "inverted": false
+  },
+  "F4": {
+    "kickoff": "2026-06-21T04:00:00Z",
+    "location": "Monterrey Stadium",
+    "inverted": true
+  },
+  "F5": {
+    "kickoff": "2026-06-25T23:00:00Z",
+    "location": "Dallas Stadium",
+    "inverted": false
+  },
+  "F6": {
+    "kickoff": "2026-06-15T02:00:00Z",
+    "location": "Monterrey Stadium",
+    "inverted": true
+  },
+  "G1": {
+    "kickoff": "2026-06-21T19:00:00Z",
+    "location": "Los Angeles Stadium",
+    "inverted": false
+  },
+  "G2": {
+    "kickoff": "2026-06-15T19:00:00Z",
+    "location": "Seattle Stadium",
+    "inverted": false
+  },
+  "G3": {
+    "kickoff": "2026-06-27T03:00:00Z",
+    "location": "BC Place Vancouver",
+    "inverted": true
+  },
+  "G4": {
+    "kickoff": "2026-06-27T03:00:00Z",
+    "location": "Seattle Stadium",
+    "inverted": true
+  },
+  "G5": {
+    "kickoff": "2026-06-16T01:00:00Z",
+    "location": "Los Angeles Stadium",
+    "inverted": false
+  },
+  "G6": {
+    "kickoff": "2026-06-22T01:00:00Z",
+    "location": "BC Place Vancouver",
+    "inverted": true
+  },
+  "H1": {
+    "kickoff": "2026-06-27T00:00:00Z",
+    "location": "Guadalajara Stadium",
+    "inverted": true
+  },
+  "H2": {
+    "kickoff": "2026-06-21T16:00:00Z",
+    "location": "Atlanta Stadium",
+    "inverted": false
+  },
+  "H3": {
+    "kickoff": "2026-06-15T16:00:00Z",
+    "location": "Atlanta Stadium",
+    "inverted": false
+  },
+  "H4": {
+    "kickoff": "2026-06-15T22:00:00Z",
+    "location": "Miami Stadium",
+    "inverted": true
+  },
+  "H5": {
+    "kickoff": "2026-06-21T22:00:00Z",
+    "location": "Miami Stadium",
+    "inverted": false
+  },
+  "H6": {
+    "kickoff": "2026-06-27T00:00:00Z",
+    "location": "Houston Stadium",
+    "inverted": true
+  },
+  "I1": {
+    "kickoff": "2026-06-16T19:00:00Z",
+    "location": "New York/New Jersey Stadium",
+    "inverted": false
+  },
+  "I2": {
+    "kickoff": "2026-06-26T19:00:00Z",
+    "location": "Boston Stadium",
+    "inverted": true
+  },
+  "I3": {
+    "kickoff": "2026-06-22T21:00:00Z",
+    "location": "Philadelphia Stadium",
+    "inverted": false
+  },
+  "I4": {
+    "kickoff": "2026-06-23T00:00:00Z",
+    "location": "New York/New Jersey Stadium",
+    "inverted": true
+  },
+  "I5": {
+    "kickoff": "2026-06-26T19:00:00Z",
+    "location": "Toronto Stadium",
+    "inverted": false
+  },
+  "I6": {
+    "kickoff": "2026-06-16T22:00:00Z",
+    "location": "Boston Stadium",
+    "inverted": true
+  },
+  "J1": {
+    "kickoff": "2026-06-22T17:00:00Z",
+    "location": "Dallas Stadium",
+    "inverted": false
+  },
+  "J2": {
+    "kickoff": "2026-06-17T01:00:00Z",
+    "location": "Kansas City Stadium",
+    "inverted": false
+  },
+  "J3": {
+    "kickoff": "2026-06-28T02:00:00Z",
+    "location": "Dallas Stadium",
+    "inverted": true
+  },
+  "J4": {
+    "kickoff": "2026-06-28T02:00:00Z",
+    "location": "Kansas City Stadium",
+    "inverted": true
+  },
+  "J5": {
+    "kickoff": "2026-06-17T04:00:00Z",
+    "location": "San Francisco Bay Area Stadium",
+    "inverted": false
+  },
+  "J6": {
+    "kickoff": "2026-06-23T03:00:00Z",
+    "location": "San Francisco Bay Area Stadium",
+    "inverted": true
+  },
+  "K1": {
+    "kickoff": "2026-06-27T23:30:00Z",
+    "location": "Miami Stadium",
+    "inverted": true
+  },
+  "K2": {
+    "kickoff": "2026-06-17T17:00:00Z",
+    "location": "Houston Stadium",
+    "inverted": false
+  },
+  "K3": {
+    "kickoff": "2026-06-23T17:00:00Z",
+    "location": "Houston Stadium",
+    "inverted": false
+  },
+  "K4": {
+    "kickoff": "2026-06-24T02:00:00Z",
+    "location": "Guadalajara Stadium",
+    "inverted": false
+  },
+  "K5": {
+    "kickoff": "2026-06-18T02:00:00Z",
+    "location": "Mexico City Stadium",
+    "inverted": true
+  },
+  "K6": {
+    "kickoff": "2026-06-27T23:30:00Z",
+    "location": "Atlanta Stadium",
+    "inverted": false
+  },
+  "L1": {
+    "kickoff": "2026-06-17T20:00:00Z",
+    "location": "Dallas Stadium",
+    "inverted": false
+  },
+  "L2": {
+    "kickoff": "2026-06-17T23:00:00Z",
+    "location": "Toronto Stadium",
+    "inverted": false
+  },
+  "L3": {
+    "kickoff": "2026-06-23T20:00:00Z",
+    "location": "Boston Stadium",
+    "inverted": false
+  },
+  "L4": {
+    "kickoff": "2026-06-23T23:00:00Z",
+    "location": "Toronto Stadium",
+    "inverted": false
+  },
+  "L5": {
+    "kickoff": "2026-06-27T21:00:00Z",
+    "location": "Philadelphia Stadium",
+    "inverted": false
+  },
+  "L6": {
+    "kickoff": "2026-06-27T21:00:00Z",
+    "location": "New York/New Jersey Stadium",
+    "inverted": false
+  }
+}

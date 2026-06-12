@@ -1,0 +1,22 @@
+{
+  "name": "polla-mundial-2026",
+  "version": "1.0.0",
+  "description": "Asistente de refresco de predicciones Mundial 2026 con alertas WhatsApp (Evolution API + OpenAI web_search + Supabase)",
+  "private": true,
+  "main": "src/scheduler.js",
+  "scripts": {
+    "start": "node src/scheduler.js",
+    "setup-db": "node scripts/setup_db.js",
+    "load-seed": "node scripts/load_seed.js",
+    "refresh": "node src/refresh.js",
+    "refresh:dry": "node src/refresh.js --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.0"
+  }
+}
