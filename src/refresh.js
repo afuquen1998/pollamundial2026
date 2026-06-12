@@ -19,9 +19,10 @@ const { analyze, evOf } = require('./lib/scoring');
 
 const DRY = process.argv.includes('--dry-run');
 const WINDOW_HOURS = Number(process.env.WINDOW_HOURS || 36);
-const ENSEMBLE = Math.max(1, Number(process.env.ENSEMBLE_SAMPLES || 3)); // muestras a promediar
+const ENSEMBLE = Math.max(1, Number(process.env.ENSEMBLE_SAMPLES || 2)); // muestras a promediar
 const MARGIN = Number(process.env.CHANGE_MARGIN || 0.5); // EV mínimo para sugerir cambio
-const EFFORT = process.env.REASONING_EFFORT || 'high';
+const EFFORT = process.env.REASONING_EFFORT || 'low'; // low = estable y sin agotar tokens
+const SAMPLE_GAP_MS = Number(process.env.SAMPLE_GAP_MS || 8000); // espaciar llamadas (evita 429 TPM)
 const TZ = 'America/Bogota';
 
 const log = (...a) => console.log(`[refresh${DRY ? ':dry' : ''}]`, ...a);
@@ -88,6 +89,7 @@ async function estimar(rows) {
   const user = buildUser(rows, fechaHoy());
   const samples = [];
   for (let s = 1; s <= ENSEMBLE; s++) {
+    if (s > 1 && SAMPLE_GAP_MS) await new Promise((r) => setTimeout(r, SAMPLE_GAP_MS));
     log(`ensemble ${s}/${ENSEMBLE}...`);
     samples.push(await unaMuestra(user));
   }

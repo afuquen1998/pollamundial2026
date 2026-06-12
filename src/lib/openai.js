@@ -6,8 +6,11 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.e
 const KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.OPENAI_MODEL || 'gpt-5';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // Llama a la Responses API. Devuelve { text, searches, raw }.
-async function respond({ system, input, webSearch = true, maxOutputTokens = 8000, effort = 'medium' }) {
+// Reintenta ante 429 (rate limit TPM) respetando el tiempo que sugiere OpenAI.
+async function respond({ system, input, webSearch = true, maxOutputTokens = 10000, effort = 'low' }) {
   if (!KEY) throw new Error('Falta OPENAI_API_KEY en .env');
 
   const body = {
@@ -19,12 +22,23 @@ async function respond({ system, input, webSearch = true, maxOutputTokens = 8000
   };
   if (webSearch) body.tools = [{ type: 'web_search' }];
 
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
+  let res, json;
+  for (let intento = 1; intento <= 4; intento++) {
+    res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    json = await res.json();
+    if (res.status === 429 && intento < 4) {
+      const msg = (json.error && json.error.message) || '';
+      const m = msg.match(/try again in ([\d.]+)s/i);
+      const espera = (m ? parseFloat(m[1]) : intento * 5) + 1.5; // margen extra
+      await sleep(espera * 1000);
+      continue;
+    }
+    break;
+  }
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${JSON.stringify(json.error || json).slice(0, 400)}`);
 
   // status incompleto (se acabaron los tokens) → avisar
