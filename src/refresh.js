@@ -19,7 +19,7 @@ const { analyze, evOf } = require('./lib/scoring');
 
 const DRY = process.argv.includes('--dry-run');
 const WINDOW_HOURS = Number(process.env.WINDOW_HOURS || 36);
-const ENSEMBLE = Math.max(1, Number(process.env.ENSEMBLE_SAMPLES || 2)); // muestras a promediar
+const ENSEMBLE = Math.max(1, Number(process.env.ENSEMBLE_SAMPLES || 1)); // muestras a promediar
 const MARGIN = Number(process.env.CHANGE_MARGIN || 0.5); // EV mínimo para sugerir cambio
 const EFFORT = process.env.REASONING_EFFORT || 'low'; // low = estable y sin agotar tokens
 const SAMPLE_GAP_MS = Number(process.env.SAMPLE_GAP_MS || 8000); // espaciar llamadas (evita 429 TPM)
@@ -127,36 +127,47 @@ function analizarPartido(p, est0) {
 }
 
 function lineaPartido(d) {
-  const { p, est, an, curEv, gain, cambiar } = d;
+  const { p, est, an, gain, cambiar } = d;
   const c = an.conservative, a = an.aggressive;
-  const rotacion = est.trascendente ? '' : '  ⚠️ riesgo rotación';
-  const top = an.top3.map((t) => `${t.h}-${t.a} ${pct(t.pExact)}`).join(' · ');
+  const rotacion = est.trascendente
+    ? ''
+    : '\n⚠️ Ojo: hay un equipo ya clasificado o eliminado, podría rotar jugadores.';
+  const top = an.top3.map((t) => `${t.h}-${t.a}`).join(' · ');
   const reco = cambiar
-    ? `👉 *CAMBIAR* a ${c.h}-${c.a}  (+${gain.toFixed(1)} EV vs tu actual)`
-    : `👉 *MANTENER* tu ${p.c_h}-${p.c_a}  (ya es casi óptimo)`;
+    ? `👉 *CAMBIA a ${c.h}-${c.a}*  (ganarías ~${gain.toFixed(1)} pts más que con tu ${p.c_h}-${p.c_a})`
+    : `👉 *DEJA tu ${p.c_h}-${p.c_a}*  (ya es casi lo mejor, no vale la pena cambiar)`;
   return (
-    `⚽ *${p.home} vs ${p.away}*  · datos: ${est.conf}${rotacion}\n` +
-    `📌 Tu actual: ${p.c_h}-${p.c_a}  (EV ${curEv.toFixed(1)})\n` +
-    `🛡️ Conservador: ${c.h}-${c.a}  (EV ${c.ev.toFixed(1)} · exacto ${pct(c.pExact)})\n` +
-    `🔥 Arriesgado: ${a.h}-${a.a}  (exacto ${pct(a.pExact)} · si pega +10)\n` +
-    `📊 1X2: ${p.home} ${pct(an.probs['1'])} · X ${pct(an.probs['X'])} · ${p.away} ${pct(an.probs['2'])}\n` +
-    `🎯 Top marcadores: ${top}\n` +
-    (est.facts ? `🧠 ${cleanReason(est.facts)}\n` : '') +
-    reco
+    `━━━━━━━━━━━━━━\n` +
+    `⚽ *${p.home} vs ${p.away}*   · confianza en los datos: ${est.conf}${rotacion}\n\n` +
+    `📌 Tu marcador cargado: ${p.c_h}-${p.c_a}\n` +
+    `🛡️ Opción SEGURA: ${c.h}-${c.a}   (≈${c.ev.toFixed(1)} pts en promedio)\n` +
+    `🔥 Opción ARRIESGADA: ${a.h}-${a.a}   (${pct(a.pExact)} de pegarla clavada → 10 pts)\n\n` +
+    `📊 ¿Quién gana?  ${p.home} ${pct(an.probs['1'])} · Empate ${pct(an.probs['X'])} · ${p.away} ${pct(an.probs['2'])}\n` +
+    `🎯 Marcadores más probables: ${top}\n` +
+    (est.facts ? `🧠 Dato clave: ${cleanReason(est.facts)}\n` : '') +
+    `\n${reco}`
   );
 }
 
 function buildMensaje(analizados) {
   const total = analizados.length;
   const nCambios = analizados.filter((d) => d.cambiar).length;
-  const cuerpo = analizados.map(lineaPartido).join('\n\n');
+  const cuerpo = analizados.map(lineaPartido).join('\n');
+  const leyenda =
+    `\n━━━━━━━━━━━━━━\n` +
+    `ℹ️ *Cómo leer esto:*\n` +
+    `🛡️ *SEGURA* = el marcador que en promedio te da más puntos. La apuesta sólida y estable.\n` +
+    `🔥 *ARRIESGADA* = el marcador con más chance de acertar EXACTO (vale 10 pts), pero menos probable.\n` +
+    `📊 Los % = qué tan probable es cada cosa.\n` +
+    `"pts en promedio" sirve solo para comparar: mientras más alto, mejor el marcador.\n` +
+    `El cálculo es matemático y estable: no te va a cambiar el marcador de un día a otro sin una razón real.`;
   const texto =
-    `🔔 *Polla Mundial 2026* — cierre próximo\n\n` +
-    `${total} partido(s) se cierran pronto. Sugiero cambiar: ${nCambios}.\n` +
-    `Para cada uno tienes tu marcador actual, una opción conservadora (máx. puntos esperados) ` +
-    `y una arriesgada (máx. opción de pegar el exacto de 10 pts). *Tú decides.*\n\n` +
+    `🔔 *Polla Mundial 2026* — partidos que cierran pronto\n\n` +
+    `Tienes ${total} partido(s) por confirmar. De ${total}, te sugiero cambiar ${nCambios}.\n` +
+    `Para cada uno verás: tu marcador cargado, una opción SEGURA, una ARRIESGADA y el panorama. ` +
+    `*La decisión final es tuya.*\n` +
     cuerpo +
-    `\n\n_El marcador lo calcula un motor determinista sobre los goles esperados: estable entre corridas._`;
+    leyenda;
   return { texto, nCambios };
 }
 
