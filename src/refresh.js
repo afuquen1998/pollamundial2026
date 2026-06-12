@@ -183,11 +183,17 @@ async function main() {
   }
 
   // 2. ventana
-  const rows = await select(
+  const rowsRaw = await select(
     `select=*&cerrado=eq.false&kickoff=gt.${ahora.toISOString()}&kickoff=lte.${limite.toISOString()}&order=kickoff`
   );
-  log(`ventana ${WINDOW_HOURS}h: ${rows.length} partidos → ${rows.map((r) => r.id).join(',') || '(ninguno)'}`);
-  if (!rows.length) { log('nada se cierra pronto. Fin.'); return; }
+  // Guardia: ignora partidos de eliminatorias cuyos equipos aún no se definen
+  // ("Por definir") → no tiene sentido analizar hasta saber quién juega.
+  const esPlaceholder = (s = '') => /por definir|to be announced|tbd/i.test(s);
+  const rows = rowsRaw.filter((r) => !esPlaceholder(r.home) && !esPlaceholder(r.away));
+  const saltados = rowsRaw.length - rows.length;
+  log(`ventana ${WINDOW_HOURS}h: ${rows.length} partidos → ${rows.map((r) => r.id).join(',') || '(ninguno)'}` +
+    (saltados ? ` | ${saltados} con equipos por definir (ignorados)` : ''));
+  if (!rows.length) { log('nada que analizar. Fin.'); return; }
 
   // 3-5. estimaciones (ensemble) + motor determinista
   let estimaciones;
