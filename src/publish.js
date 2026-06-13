@@ -11,10 +11,8 @@
 // reporta error (no itera otras fechas).
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
-const { select, update } = require('./lib/supabase');
-const { findMatch } = require('./lib/teams');
-const prediccion = require('./lib/publishers/prediccion');
-const futbolera = require('./lib/publishers/futbolera');
+const { select } = require('./lib/supabase');
+const { resolveMarcador, publishToTargets } = require('./lib/publishLogic');
 
 function parseArgs(argv) {
   const args = { target: process.env.PUBLISH_DEFAULT_TARGET || 'ambas', dryRun: argv.includes('--dry-run') };
@@ -32,39 +30,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function resolveMarcador(row, tipo) {
-  if (tipo === 'seguro') return { gh: row.sug_c_h, ga: row.sug_c_a };
-  if (tipo === 'arriesgado') return { gh: row.sug_a_h, ga: row.sug_a_a };
-  const m = tipo.match(/^(\d+)-(\d+)$/);
-  if (!m) throw new Error(`--tipo inválido: ${tipo}`);
-  return { gh: Number(m[1]), ga: Number(m[2]) };
-}
-
-async function publishPrediccion(row, gh, ga, dryRun) {
-  const jar = prediccion.createJar();
-  await prediccion.login(jar);
-  const partidos = await prediccion.listPartidos(jar);
-  const match = findMatch(row, partidos);
-  if (!match) return { ok: false, motivo: 'no encontrado en Predicción Ganadora' };
-  if (dryRun) return { ok: true, dryRun: true, detalle: `id=${match.id} (${match.home} vs ${match.away}) -> ${gh}-${ga}` };
-  await prediccion.setMarcador(jar, match, gh, ga);
-  return { ok: true, detalle: `id=${match.id} (${match.home} vs ${match.away}) -> ${gh}-${ga}` };
-}
-
-async function publishFutbolera(row, gh, ga, dryRun) {
-  const { browser, page } = await futbolera.login();
-  try {
-    const { codigoFecha, partidos } = await futbolera.leerFecha(page);
-    const match = findMatch(row, partidos);
-    if (!match) return { ok: false, motivo: `no encontrado en Polla Futbolera (fecha ${codigoFecha})` };
-    if (dryRun) return { ok: true, dryRun: true, detalle: `fecha=${codigoFecha} partido${match.i} (${match.home} vs ${match.away}) -> ${gh}-${ga}` };
-    await futbolera.setMarcadores(page, [{ i: match.i, gh, ga }]);
-    return { ok: true, detalle: `fecha=${codigoFecha} partido${match.i} (${match.home} vs ${match.away}) -> ${gh}-${ga}` };
-  } finally {
-    await browser.close();
-  }
-}
-
 (async () => {
   const args = parseArgs(process.argv.slice(2));
 
@@ -77,23 +42,14 @@ async function publishFutbolera(row, gh, ga, dryRun) {
 
   console.log(`[publish] ${args.id} (${row.home} vs ${row.away}) -> ${gh}-${ga} | target=${args.target}${args.dryRun ? ' | DRY-RUN' : ''}`);
 
-  const targets = args.target === 'ambas' ? ['prediccion', 'futbolera'] : [args.target];
-  const results = {};
+  const { results, targets } = await publishToTargets(row, gh, ga, args.target, args.dryRun);
   for (const t of targets) {
-    try {
-      results[t] = t === 'prediccion'
-        ? await publishPrediccion(row, gh, ga, args.dryRun)
-        : await publishFutbolera(row, gh, ga, args.dryRun);
-    } catch (e) {
-      results[t] = { ok: false, motivo: e.message };
-    }
     const r = results[t];
     console.log(`  ${t}: ${r.ok ? '✓' : '✗'} ${r.detalle || r.motivo || ''}`);
   }
 
   const todosOk = targets.every((t) => results[t].ok);
   if (!args.dryRun && todosOk) {
-    await update(row.id, { c_h: gh, c_a: ga });
     console.log(`[publish] BD actualizada: ${args.id} c_h=${gh} c_a=${ga}`);
   }
 })().catch((e) => {

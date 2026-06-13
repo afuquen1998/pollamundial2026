@@ -10,13 +10,15 @@
     "load-seed": "node scripts/load_seed.js",
     "refresh": "node src/refresh.js",
     "refresh:dry": "node src/refresh.js --dry-run",
-    "publish": "node src/publish.js"
+    "publish": "node src/publish.js",
+    "server": "node src/server.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "express": "^4.21.2",
     "node-cron": "^3.0.3",
     "pg": "^8.13.0",
     "playwright": "^1.60.0"
