@@ -13,6 +13,7 @@ const { parseComando, AYUDA } = require('./lib/parser');
 const { publishToTargets } = require('./lib/publishLogic');
 const ranking = require('./lib/publishers/ranking');
 const postura = require('./lib/postura');
+const { intentarResponder, mensajeResultado } = require('./lib/triviaFlow');
 
 const PORT = Number(process.env.PORT || 3000);
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
@@ -41,6 +42,50 @@ cron.schedule(SCHEDULE, runRefresh, { timezone: CRON_TZ });
 if (process.env.RUN_ON_START === 'true') {
   console.log('[server] RUN_ON_START=true → corriendo refresh una vez ahora.');
   runRefresh();
+}
+
+// ── Cron de TRIVIA (Iniciativa A) — DESACTIVADO por defecto ────────────────
+// Solo se activa con TRIVIA_ENABLED=true (tras verificar el primer envío supervisado).
+// Sondea unas pocas veces al día durante la ventana del concurso; al detectar una
+// pregunta nueva resuelve y responde en el acto (flujo atómico, fallback siempre envía).
+const TRIVIA_ENABLED = process.env.TRIVIA_ENABLED === 'true';
+const TRIVIA_SCHEDULE = process.env.TRIVIA_SCHEDULE || '0 10,13,16,19 * * *'; // 10am/1pm/4pm/7pm
+const CONCURSO_INI = '2026-06-11';
+const CONCURSO_FIN = '2026-07-19';
+
+function fechaBogota(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+function enVentanaConcurso(d = new Date()) {
+  const f = fechaBogota(d);
+  return f >= CONCURSO_INI && f <= CONCURSO_FIN;
+}
+
+async function sondearTrivia() {
+  if (!enVentanaConcurso()) { console.log('[trivia] fuera de la ventana del concurso, omito.'); return; }
+  try {
+    const rep = await intentarResponder({ log: (...a) => console.log('[trivia]', ...a) });
+    console.log('[trivia] estado:', rep.estado);
+    if (rep.estado === 'respondida') {
+      const msg = mensajeResultado(rep);
+      if (msg) await sendText(msg);
+    } else if (rep.estado === 'error') {
+      await sendText(`⚠️ Trivia: hubo un problema al responder (${rep.error}). Revisa manual si quieres.`);
+    }
+  } catch (e) {
+    console.error('[trivia] sondeo falló:', e.message);
+  }
+}
+
+if (TRIVIA_ENABLED) {
+  if (!cron.validate(TRIVIA_SCHEDULE)) {
+    console.error(`[server] TRIVIA_SCHEDULE inválido: "${TRIVIA_SCHEDULE}" → trivia no programada.`);
+  } else {
+    console.log(`[server] cron TRIVIA activo. Programado "${TRIVIA_SCHEDULE}" (${CRON_TZ}).`);
+    cron.schedule(TRIVIA_SCHEDULE, sondearTrivia, { timezone: CRON_TZ });
+  }
+} else {
+  console.log('[server] cron TRIVIA DESACTIVADO (poné TRIVIA_ENABLED=true para activarlo).');
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
