@@ -53,8 +53,18 @@ async function publishToTargets(row, gh, ga, target, dryRun) {
     }
   }
   const todosOk = targets.every((t) => results[t].ok);
-  if (!dryRun && todosOk) {
-    await update(row.id, { c_h: gh, c_a: ga });
+  if (!dryRun) {
+    const patch = {};
+    if (todosOk) {
+      patch.c_h = gh;
+      patch.c_a = ga;
+      patch.pub_c_h = gh;
+      patch.pub_c_a = ga;
+    }
+    const now = new Date().toISOString();
+    if (results.prediccion?.ok) patch.pub_pg_at = now;
+    if (results.futbolera?.ok) patch.pub_pf_at = now;
+    if (Object.keys(patch).length) await update(row.id, patch);
   }
   return { results, todosOk, targets };
 }
