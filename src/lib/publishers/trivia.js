@@ -20,37 +20,44 @@ const limpiar = (h) => ents(String(h).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, 
 
 // Parsea el HTML de trivia.asp. Devuelve null si no hay pregunta activa, o
 // { sec, cod, pregunta, opciones:[{id,texto}], segundos, html }.
+//
+// Estrategia (robusta, basada en rutinas.js): los sec/cod/idRespuesta vienen en las
+// llamadas onclick SeleccionarRespuestaTrivia(SecTrivia, CodTrivia, IdRespuesta); los
+// TEXTOS de las opciones están en #respuesta1..4 (así lo confirma rutinas.js). Se
+// extraen por separado y se emparejan por orden → no depende de cómo esté envuelto el DOM.
 function parseTrivia(html) {
   if (!/id=["']pregunta["']/i.test(html) && !/SeleccionarRespuestaTrivia/i.test(html)) return null;
 
-  // Opciones: cada elemento con onclick SeleccionarRespuestaTrivia(sec, cod, idRespuesta).
-  // Captura args + texto interno del mismo elemento.
-  const opciones = [];
-  let sec = null, cod = null;
-  const re = /<([a-z]+)\b[^>]*onclick=["'][^"']*SeleccionarRespuestaTrivia\(\s*['"]?([^,'")]+)['"]?\s*,\s*['"]?([^,'")]+)['"]?\s*,\s*['"]?([^,'")]+)['"]?\s*\)[^>]*>([\s\S]*?)<\/\1>/gi;
-  let m;
-  while ((m = re.exec(html))) {
-    sec = sec ?? m[2].trim();
-    cod = cod ?? m[3].trim();
-    const id = m[4].trim();
-    const texto = limpiar(m[5]);
-    if (texto) opciones.push({ id, texto });
+  // 1) Todas las llamadas SeleccionarRespuestaTrivia(sec, cod, id), en orden.
+  //    Se descarta la firma de la función (params SecTrivia/CodTrivia/IdRespuesta) por si acaso.
+  const calls = [...html.matchAll(/SeleccionarRespuestaTrivia\(\s*['"]?([^,'")]+?)['"]?\s*,\s*['"]?([^,'")]+?)['"]?\s*,\s*['"]?([^,'")]+?)['"]?\s*\)/gi)]
+    .map((m) => ({ sec: m[1].trim(), cod: m[2].trim(), id: m[3].trim() }))
+    .filter((c) => !/Trivia$/i.test(c.sec) && !/Trivia$/i.test(c.cod)); // descarta SecTrivia/CodTrivia/IdRespuesta
+
+  // 2) Textos de las opciones por #respuesta1..4.
+  const textos = [];
+  for (let i = 1; i <= 4; i++) {
+    const mm = new RegExp(`id=["']respuesta${i}["'][^>]*>([\\s\\S]*?)</`, 'i').exec(html);
+    textos[i - 1] = mm ? limpiar(mm[1]) : '';
   }
 
-  // Fallback de opciones por #respuesta1..4 si el regex anterior no capturó textos.
-  if (!opciones.length) {
-    for (let i = 1; i <= 4; i++) {
-      const mm = new RegExp(`id=["']respuesta${i}["'][^>]*>([\\s\\S]*?)<`, 'i').exec(html);
-      if (mm) opciones.push({ id: String(i), texto: limpiar(mm[1]) });
-    }
+  // 3) Construir opciones emparejando id (de las calls) con texto (de #respuestaN).
+  let opciones = [];
+  let sec = null, cod = null;
+  if (calls.length) {
+    sec = calls[0].sec; cod = calls[0].cod;
+    opciones = calls.map((c, i) => ({ id: c.id, texto: textos[i] || `Opción ${i + 1}` }));
+  } else {
+    // Sin onclick parseable → al menos usar los textos (id 1..n como último recurso).
+    opciones = textos.filter(Boolean).map((t, i) => ({ id: String(i + 1), texto: t }));
   }
   if (!opciones.length) return null;
 
-  // Pregunta: texto del elemento #pregunta.
-  const pm = /id=["']pregunta["'][^>]*>([\s\S]*?)<\/(?:div|p|span|h\d|td)>/i.exec(html);
+  // 4) Pregunta: texto del elemento #pregunta.
+  const pm = /id=["']pregunta["'][^>]*>([\s\S]*?)<\/(?:div|p|span|h\d|td|label)>/i.exec(html);
   const pregunta = pm ? limpiar(pm[1]) : limpiar((/id=["']pregunta["'][^>]*>([\s\S]{0,400})/i.exec(html) || [])[1] || '');
 
-  // Segundos: value de #casilla-segundos (o su texto). Default 20.
+  // 5) Segundos: innerHTML/value de #casilla-segundos. Default 20.
   const sm = /id=["']casilla-segundos["'][^>]*value=["'](\d+)["']/i.exec(html)
     || /id=["']casilla-segundos["'][^>]*>\s*(\d+)/i.exec(html);
   const segundos = sm ? Number(sm[1]) : 20;
