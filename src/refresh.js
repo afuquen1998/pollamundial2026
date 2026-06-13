@@ -17,6 +17,8 @@ const { SYSTEM, buildUser } = require('./lib/prompt');
 const { sendText } = require('./lib/evolution');
 const { analyze, evOf } = require('./lib/scoring');
 const { AYUDA } = require('./lib/parser');
+const ranking = require('./lib/publishers/ranking');
+const postura = require('./lib/postura');
 
 const DRY = process.argv.includes('--dry-run');
 // Si WINDOW_HOURS está seteado, se usa esa ventana fija (modo viejo, para pruebas).
@@ -198,10 +200,11 @@ function lineaPartido(d) {
   );
 }
 
-function buildMensaje(analizados) {
+function buildMensaje(analizados, rankingBlock = '') {
   const total = analizados.length;
   const nCambios = analizados.filter((d) => d.cambiar).length;
   const cuerpo = analizados.map(lineaPartido).join('\n');
+  const cabeceraRanking = rankingBlock ? `\n━━━━━━━━━━━━━━\n${rankingBlock}\n` : '';
   const leyenda =
     `\n━━━━━━━━━━━━━━\n` +
     `ℹ️ *Cómo leer esto:*\n` +
@@ -216,6 +219,7 @@ function buildMensaje(analizados) {
     `Tienes ${total} partido(s) por confirmar. De ${total}, te sugiero cambiar ${nCambios}.\n` +
     `Para cada uno verás: tu marcador cargado, una opción SEGURA, una ARRIESGADA y el panorama. ` +
     `*La decisión final es tuya.*\n` +
+    cabeceraRanking +
     cuerpo +
     leyenda +
     instructivo;
@@ -265,7 +269,26 @@ async function main() {
   }
 
   const analizados = rows.filter((p) => estimaciones[p.id]).map((p) => analizarPartido(p, estimaciones[p.id]));
-  const { texto, nCambios } = buildMensaje(analizados);
+
+  // Ranking + postura (no crítico: si falla, el mensaje sale sin ese bloque).
+  let rankingBlock = '';
+  try {
+    const [pg, pf, restantes] = await Promise.all([
+      ranking.posicionesPG().catch((e) => { log('ranking PG falló:', e.message); return null; }),
+      ranking.posicionesPF().catch((e) => { log('ranking PF falló:', e.message); return null; }),
+      ranking.contarRestantes().catch(() => analizados.length),
+    ]);
+    rankingBlock = postura.bloque([pg, pf], restantes);
+    log(`ranking: PG ${pg ? '#' + pg.miPuesto : 'n/d'} · PF ${pf ? '#' + pf.miPuesto : 'n/d'} · restantes ${restantes}`);
+    if (!DRY) {
+      const fechaIso = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      await ranking.guardarSnapshot(fechaIso, [pg, pf]).catch((e) => log('snapshot ranking falló:', e.message));
+    }
+  } catch (e) {
+    log('bloque ranking falló (sigo sin él):', e.message);
+  }
+
+  const { texto, nCambios } = buildMensaje(analizados, rankingBlock);
   log(`analizados: ${analizados.length} | sugerencias de cambio: ${nCambios}`);
 
   // 6-7. enviar + guardar

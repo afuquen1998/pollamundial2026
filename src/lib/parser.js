@@ -21,6 +21,9 @@ function parseComando(texto) {
 
   if (t === 'ayuda' || t === 'help' || t === 'ayuda?') return { type: 'ayuda' };
 
+  // "postura" (opcionalmente seguido de una palabra) → muestra puesto + postura sugerida.
+  if (/^postura\b/.test(t)) return { type: 'postura' };
+
   let m = t.match(/^todos\s+(seguro|arriesgado)$/);
   if (m) return { type: 'todos', tipo: m[1] };
 
@@ -44,6 +47,7 @@ const AYUDA = [
   '• "A6 dejar"   → no cambia nada',
   'Agrega "futbolera" o "prediccion" al final si quieres una sola web (si no, van las dos).',
   '"todos seguro" o "todos arriesgado" carga esa opción en todos los partidos de hoy.',
+  '• "postura" → te digo en qué puesto vas y qué conviene (atacar/proteger/equilibrado).',
 ].join('\n');
 
 module.exports = { parseComando, normalizar, AYUDA };

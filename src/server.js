@@ -11,6 +11,8 @@ const { select } = require('./lib/supabase');
 const { sendText } = require('./lib/evolution');
 const { parseComando, AYUDA } = require('./lib/parser');
 const { publishToTargets } = require('./lib/publishLogic');
+const ranking = require('./lib/publishers/ranking');
+const postura = require('./lib/postura');
 
 const PORT = Number(process.env.PORT || 3000);
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
@@ -130,6 +132,21 @@ async function procesarTodos(cmd) {
   await sendText(`Resumen "${tipo}":\n${lineas.join('\n')}`);
 }
 
+// "postura": lee tu posición en vivo en ambas pollas y sugiere una postura.
+async function procesarPostura() {
+  await sendText('⏳ Consultando tu posición en ambas pollas...');
+  const [pg, pf, restantes] = await Promise.all([
+    ranking.posicionesPG().catch((e) => { console.error('[server] ranking PG:', e.message); return null; }),
+    ranking.posicionesPF().catch((e) => { console.error('[server] ranking PF:', e.message); return null; }),
+    ranking.contarRestantes().catch(() => 0),
+  ]);
+  if (!pg && !pf) {
+    await sendText('⚠️ No pude leer tu posición ahora. Intenta más tarde.');
+    return;
+  }
+  await sendText(postura.bloque([pg, pf], restantes));
+}
+
 async function procesarMensaje(texto) {
   const cmd = parseComando(texto);
   if (!cmd) {
@@ -139,6 +156,10 @@ async function procesarMensaje(texto) {
   }
   if (cmd.type === 'ayuda') {
     await sendText(AYUDA);
+    return;
+  }
+  if (cmd.type === 'postura') {
+    await procesarPostura();
     return;
   }
   if (cmd.type === 'todos') {
