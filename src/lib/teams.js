@@ -59,6 +59,18 @@ const ALIAS = {
 
   // Irak / Iraq
   IRAQ: 'IRAK',
+
+  // Nueva Zelanda (Predicción Ganadora la llama "Nueva Zelandia")
+  'NUEVA ZELANDIA': 'NUEVA ZELANDA',
+
+  // Irán (Polla Futbolera la llama "RI de Irán", Repúb. Islámica)
+  'RI DE IRAN': 'IRAN',
+
+  // Cabo Verde (Polla Futbolera la llama "Islas de Cabo Verde")
+  'ISLAS DE CABO VERDE': 'CABO VERDE',
+
+  // Corea del Sur (Polla Futbolera la llama "República de Corea")
+  'REPUBLICA DE COREA': 'COREA DEL SUR',
 };
 
 // Resuelve un nombre (crudo) a su forma canónica normalizada.
