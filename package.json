@@ -5,7 +5,7 @@
   "private": true,
   "main": "src/scheduler.js",
   "scripts": {
-    "start": "node src/scheduler.js",
+    "start": "node src/server.js",
     "setup-db": "node scripts/setup_db.js",
     "load-seed": "node scripts/load_seed.js",
     "refresh": "node src/refresh.js",
