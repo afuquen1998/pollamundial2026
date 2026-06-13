@@ -18,7 +18,9 @@ const { sendText } = require('./lib/evolution');
 const { analyze, evOf } = require('./lib/scoring');
 
 const DRY = process.argv.includes('--dry-run');
-const WINDOW_HOURS = Number(process.env.WINDOW_HOURS || 36);
+// Si WINDOW_HOURS está seteado, se usa esa ventana fija (modo viejo, para pruebas).
+// Si no, la ventana es "hasta el fin del día de hoy en Bogotá" (solo partidos de HOY).
+const WINDOW_HOURS = process.env.WINDOW_HOURS ? Number(process.env.WINDOW_HOURS) : null;
 const ENSEMBLE = Math.max(1, Number(process.env.ENSEMBLE_SAMPLES || 1)); // muestras a promediar
 const MARGIN = Number(process.env.CHANGE_MARGIN || 0.5); // EV mínimo para sugerir cambio
 const EFFORT = process.env.REASONING_EFFORT || 'low'; // low = estable y sin agotar tokens
@@ -28,6 +30,13 @@ const TZ = 'America/Bogota';
 const log = (...a) => console.log(`[refresh${DRY ? ':dry' : ''}]`, ...a);
 const fechaHoy = () =>
   new Intl.DateTimeFormat('es-CO', { timeZone: TZ, dateStyle: 'full' }).format(new Date());
+// 23:59:59 de hoy en Bogotá (UTC-5 fijo, sin horario de verano).
+function finDelDiaBogota(ahora = new Date()) {
+  const f = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(ahora); // 'YYYY-MM-DD'
+  return new Date(`${f}T23:59:59-05:00`);
+}
 const pct = (v) => `${Math.round(v * 100)}%`;
 const cleanReason = (s = '') =>
   s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1').replace(/\s{2,}/g, ' ').trim();
@@ -138,7 +147,7 @@ function lineaPartido(d) {
     : `👉 *DEJA tu ${p.c_h}-${p.c_a}*  (ya es casi lo mejor, no vale la pena cambiar)`;
   return (
     `━━━━━━━━━━━━━━\n` +
-    `⚽ *${p.home} vs ${p.away}*   · confianza en los datos: ${est.conf}${rotacion}\n\n` +
+    `⚽ *[${p.id}] ${p.home} vs ${p.away}*   · confianza en los datos: ${est.conf}${rotacion}\n\n` +
     `📌 Tu marcador cargado: ${p.c_h}-${p.c_a}\n` +
     `🛡️ Opción SEGURA: ${c.h}-${c.a}   (≈${c.ev.toFixed(1)} pts en promedio)\n` +
     `🔥 Opción ARRIESGADA: ${a.h}-${a.a}   (${pct(a.pExact)} de pegarla clavada → 10 pts)\n\n` +
@@ -161,19 +170,30 @@ function buildMensaje(analizados) {
     `📊 Los % = qué tan probable es cada cosa.\n` +
     `"pts en promedio" sirve solo para comparar: mientras más alto, mejor el marcador.\n` +
     `El cálculo es matemático y estable: no te va a cambiar el marcador de un día a otro sin una razón real.`;
+  const instructivo =
+    `\n━━━━━━━━━━━━━━\n` +
+    `✍️ Para cargar, respóndeme con el código del partido:\n` +
+    `• "A6 seguro"  → carga la opción segura\n` +
+    `• "A6 2-1"     → carga ese marcador\n` +
+    `• "A6 dejar"   → no cambia nada\n` +
+    `Agrega "futbolera" o "prediccion" si quieres una sola web (si no, van las dos).\n` +
+    `"todos seguro" carga la opción segura en todos.`;
   const texto =
-    `🔔 *Polla Mundial 2026* — partidos que cierran pronto\n\n` +
+    `🔔 *Polla Mundial 2026* — partidos de hoy\n\n` +
     `Tienes ${total} partido(s) por confirmar. De ${total}, te sugiero cambiar ${nCambios}.\n` +
     `Para cada uno verás: tu marcador cargado, una opción SEGURA, una ARRIESGADA y el panorama. ` +
     `*La decisión final es tuya.*\n` +
     cuerpo +
-    leyenda;
+    leyenda +
+    instructivo;
   return { texto, nCambios };
 }
 
 async function main() {
   const ahora = new Date();
-  const limite = new Date(ahora.getTime() + WINDOW_HOURS * 3600 * 1000);
+  const limite = WINDOW_HOURS
+    ? new Date(ahora.getTime() + WINDOW_HOURS * 3600 * 1000)
+    : finDelDiaBogota(ahora);
 
   // 1. auto-cierre de partidos ya iniciados
   const pasados = await select(`select=id&cerrado=eq.false&kickoff=lte.${ahora.toISOString()}`);
@@ -191,7 +211,8 @@ async function main() {
   const esPlaceholder = (s = '') => /por definir|to be announced|tbd/i.test(s);
   const rows = rowsRaw.filter((r) => !esPlaceholder(r.home) && !esPlaceholder(r.away));
   const saltados = rowsRaw.length - rows.length;
-  log(`ventana ${WINDOW_HOURS}h: ${rows.length} partidos → ${rows.map((r) => r.id).join(',') || '(ninguno)'}` +
+  const etiquetaVentana = WINDOW_HOURS ? `${WINDOW_HOURS}h` : 'hoy';
+  log(`ventana ${etiquetaVentana}: ${rows.length} partidos → ${rows.map((r) => r.id).join(',') || '(ninguno)'}` +
     (saltados ? ` | ${saltados} con equipos por definir (ignorados)` : ''));
   if (!rows.length) { log('nada que analizar. Fin.'); return; }
 
