@@ -148,7 +148,8 @@ async function procesarTodos(cmd) {
 async function procesarMensaje(texto) {
   const cmd = parseComando(texto);
   if (!cmd) {
-    await sendText(`🤔 No entendí "${texto}".\n\n${AYUDA}`);
+    // Texto que no es un comando (chat normal en el mismo número): se ignora en silencio.
+    console.log(`[server] webhook: texto no reconocido, ignorado: "${texto}"`);
     return;
   }
   if (cmd.type === 'ayuda') {

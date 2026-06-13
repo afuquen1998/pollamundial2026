@@ -16,6 +16,7 @@ const { respond, extractJsonArray } = require('./lib/openai');
 const { SYSTEM, buildUser } = require('./lib/prompt');
 const { sendText } = require('./lib/evolution');
 const { analyze, evOf } = require('./lib/scoring');
+const { AYUDA } = require('./lib/parser');
 
 const DRY = process.argv.includes('--dry-run');
 // Si WINDOW_HOURS está seteado, se usa esa ventana fija (modo viejo, para pruebas).
@@ -170,14 +171,7 @@ function buildMensaje(analizados) {
     `📊 Los % = qué tan probable es cada cosa.\n` +
     `"pts en promedio" sirve solo para comparar: mientras más alto, mejor el marcador.\n` +
     `El cálculo es matemático y estable: no te va a cambiar el marcador de un día a otro sin una razón real.`;
-  const instructivo =
-    `\n━━━━━━━━━━━━━━\n` +
-    `✍️ Para cargar, respóndeme con el código del partido:\n` +
-    `• "A6 seguro"  → carga la opción segura\n` +
-    `• "A6 2-1"     → carga ese marcador\n` +
-    `• "A6 dejar"   → no cambia nada\n` +
-    `Agrega "futbolera" o "prediccion" si quieres una sola web (si no, van las dos).\n` +
-    `"todos seguro" carga la opción segura en todos.`;
+  const instructivo = `\n━━━━━━━━━━━━━━\n${AYUDA}`;
   const texto =
     `🔔 *Polla Mundial 2026* — partidos de hoy\n\n` +
     `Tienes ${total} partido(s) por confirmar. De ${total}, te sugiero cambiar ${nCambios}.\n` +
