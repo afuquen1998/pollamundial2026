@@ -12,7 +12,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const { select } = require('./lib/supabase');
-const { resolveMarcador, publishToTargets } = require('./lib/publishLogic');
+const { publishToTargets } = require('./lib/publishLogic');
 
 function parseArgs(argv) {
   const args = { target: process.env.PUBLISH_DEFAULT_TARGET || 'ambas', dryRun: argv.includes('--dry-run') };
@@ -33,24 +33,23 @@ function parseArgs(argv) {
 (async () => {
   const args = parseArgs(process.argv.slice(2));
 
-  const rows = await select(`id,home,away,kickoff,sug_c_h,sug_c_a,sug_a_h,sug_a_a&id=eq.${encodeURIComponent(args.id)}`);
+  const cols = 'c_h,c_a,c_pf_h,c_pf_a,sug_c_h,sug_c_a,sug_a_h,sug_a_a,sug_pf_c_h,sug_pf_c_a,sug_pf_a_h,sug_pf_a_a';
+  const rows = await select(`id,home,away,kickoff,${cols}&id=eq.${encodeURIComponent(args.id)}`);
   const row = rows[0];
   if (!row) throw new Error(`Partido ${args.id} no encontrado en la BD`);
 
-  const { gh, ga } = resolveMarcador(row, args.tipo);
-  if (gh == null || ga == null) throw new Error(`No hay sugerencia "${args.tipo}" guardada para ${args.id}`);
+  console.log(`[publish] ${args.id} (${row.home} vs ${row.away}) | tipo=${args.tipo} | target=${args.target}${args.dryRun ? ' | DRY-RUN' : ''}`);
 
-  console.log(`[publish] ${args.id} (${row.home} vs ${row.away}) -> ${gh}-${ga} | target=${args.target}${args.dryRun ? ' | DRY-RUN' : ''}`);
-
-  const { results, targets } = await publishToTargets(row, gh, ga, args.target, args.dryRun);
+  const { results, targets } = await publishToTargets(row, args.tipo, args.target, args.dryRun);
   for (const t of targets) {
     const r = results[t];
-    console.log(`  ${t}: ${r.ok ? '✓' : '✗'} ${r.detalle || r.motivo || ''}`);
+    const mk = r.gh != null && r.ga != null ? `${r.gh}-${r.ga} ` : '';
+    console.log(`  ${t}: ${r.ok ? '✓' : '✗'} ${mk}${r.detalle || r.motivo || ''}`);
   }
 
   const todosOk = targets.every((t) => results[t].ok);
   if (!args.dryRun && todosOk) {
-    console.log(`[publish] BD actualizada: ${args.id} c_h=${gh} c_a=${ga}`);
+    console.log(`[publish] BD actualizada (marcador por plataforma).`);
   }
 })().catch((e) => {
   console.error('ERR', e.message);

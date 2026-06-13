@@ -10,7 +10,7 @@ const path = require('path');
 const { select } = require('./lib/supabase');
 const { sendText } = require('./lib/evolution');
 const { parseComando, AYUDA } = require('./lib/parser');
-const { resolveMarcador, publishToTargets } = require('./lib/publishLogic');
+const { publishToTargets } = require('./lib/publishLogic');
 
 const PORT = Number(process.env.PORT || 3000);
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
@@ -52,15 +52,18 @@ function finDelDiaBogota(ahora = new Date()) {
 
 const esPlaceholder = (s = '') => /por definir|to be announced|tbd/i.test(s);
 
-function lineResultado(id, row, gh, ga, results, targets) {
+// Muestra el resultado por plataforma con el marcador que recibió CADA polla
+// (pueden diferir: PG y PF puntúan distinto).
+function lineResultado(id, row, results, targets) {
   const partes = targets.map((t) => {
     const r = results[t];
     const nombre = t === 'futbolera' ? 'Polla Futbolera' : 'Predicción Ganadora';
-    if (r.ok) return `${nombre} ✓`;
+    const mk = r.gh != null && r.ga != null ? `${r.gh}-${r.ga} ` : '';
+    if (r.ok) return `${nombre} ${mk}✓`;
     return `${nombre} ✗ (${r.motivo || 'error'})`;
   });
   const todosOk = targets.every((t) => results[t].ok);
-  const cabecera = `[${id}] ${row.home} ${gh}-${ga} ${row.away}`;
+  const cabecera = `[${id}] ${row.home} vs ${row.away}`;
   if (todosOk) return `✅ ${cabecera} → ${partes.join(' · ')}`;
   return `⚠️ ${cabecera} → ${partes.join(' · ')} — intenta de nuevo o hazlo a mano.`;
 }
@@ -72,9 +75,11 @@ function enqueue(fn) {
   return queue;
 }
 
+const SUG_COLS = 'c_h,c_a,c_pf_h,c_pf_a,sug_c_h,sug_c_a,sug_a_h,sug_a_a,sug_pf_c_h,sug_pf_c_a,sug_pf_a_h,sug_pf_a_a';
+
 async function procesarPartido(cmd) {
   const { id, tipo, target } = cmd;
-  const rows = await select(`id,home,away,kickoff,c_h,c_a,sug_c_h,sug_c_a,sug_a_h,sug_a_a&id=eq.${encodeURIComponent(id)}`);
+  const rows = await select(`id,home,away,kickoff,${SUG_COLS}&id=eq.${encodeURIComponent(id)}`);
   const row = rows[0];
   if (!row) {
     await sendText(`❓ No encontré el partido [${id}].`);
@@ -82,26 +87,17 @@ async function procesarPartido(cmd) {
   }
 
   if (tipo === 'mantener') {
-    await sendText(`👍 [${id}] ${row.home} ${row.c_h ?? '?'}-${row.c_a ?? '?'} ${row.away} se deja como está.`);
-    return;
-  }
-
-  let gh, ga;
-  try {
-    ({ gh, ga } = resolveMarcador(row, tipo));
-  } catch (e) {
-    await sendText(`❓ No entendí el marcador para [${id}]: ${e.message}\n\n${AYUDA}`);
-    return;
-  }
-  if (gh == null || ga == null) {
-    await sendText(`⚠️ [${id}] No tengo una sugerencia "${tipo}" guardada todavía. Usa un marcador manual, ej. "${id} 2-1".`);
+    const pg = `${row.c_h ?? '?'}-${row.c_a ?? '?'}`;
+    const pf = `${row.c_pf_h ?? '?'}-${row.c_pf_a ?? '?'}`;
+    const detalle = pg === pf ? pg : `P.Ganadora ${pg} · Futbolera ${pf}`;
+    await sendText(`👍 [${id}] ${row.home} vs ${row.away} se deja como está (${detalle}).`);
     return;
   }
 
   const dest = target || DEFAULT_TARGET;
-  console.log(`[server] publicando ${id} -> ${gh}-${ga} target=${dest}${DRY_RUN ? ' (dry-run)' : ''}`);
-  const { results, targets } = await publishToTargets(row, gh, ga, dest, DRY_RUN);
-  await sendText(lineResultado(id, row, gh, ga, results, targets));
+  console.log(`[server] publicando ${id} tipo=${tipo} target=${dest}${DRY_RUN ? ' (dry-run)' : ''}`);
+  const { results, targets } = await publishToTargets(row, tipo, dest, DRY_RUN);
+  await sendText(lineResultado(id, row, results, targets));
 }
 
 async function procesarTodos(cmd) {
@@ -109,7 +105,7 @@ async function procesarTodos(cmd) {
   const ahora = new Date();
   const limite = finDelDiaBogota(ahora);
   const rowsRaw = await select(
-    `select=id,home,away,kickoff,c_h,c_a,sug_c_h,sug_c_a,sug_a_h,sug_a_a&cerrado=eq.false` +
+    `select=id,home,away,kickoff,${SUG_COLS}&cerrado=eq.false` +
       `&kickoff=gt.${ahora.toISOString()}&kickoff=lte.${limite.toISOString()}&order=kickoff`
   );
   const rows = rowsRaw.filter((r) => !esPlaceholder(r.home) && !esPlaceholder(r.away));
@@ -123,20 +119,9 @@ async function procesarTodos(cmd) {
 
   const lineas = [];
   for (const row of rows) {
-    let gh, ga;
     try {
-      ({ gh, ga } = resolveMarcador(row, tipo));
-    } catch (e) {
-      lineas.push(`❓ [${row.id}] error: ${e.message}`);
-      continue;
-    }
-    if (gh == null || ga == null) {
-      lineas.push(`⚠️ [${row.id}] sin sugerencia "${tipo}" guardada, omitido.`);
-      continue;
-    }
-    try {
-      const { results, targets } = await publishToTargets(row, gh, ga, DEFAULT_TARGET, DRY_RUN);
-      lineas.push(lineResultado(row.id, row, gh, ga, results, targets));
+      const { results, targets } = await publishToTargets(row, tipo, DEFAULT_TARGET, DRY_RUN);
+      lineas.push(lineResultado(row.id, row, results, targets));
     } catch (e) {
       lineas.push(`⚠️ [${row.id}] error: ${e.message}`);
     }

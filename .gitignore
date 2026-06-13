@@ -3,3 +3,5 @@ node_modules/
 *.log
 .gstack/
 PLAN_AUTOCARGA.md
+PLAN_TRIVIA.md
+scripts/investigar_*.js

@@ -38,7 +38,7 @@ function parseComando(texto) {
 
 const AYUDA = [
   '✍️ Cómo responder:',
-  '• "A6 seguro"  → carga la opción segura',
+  '• "A6 seguro"  → carga la opción segura (el mejor marcador para CADA polla)',
   '• "A6 arriesgado" → carga la opción arriesgada',
   '• "A6 2-1"     → carga ese marcador',
   '• "A6 dejar"   → no cambia nada',

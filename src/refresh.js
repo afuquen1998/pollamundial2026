@@ -125,34 +125,73 @@ function reconciliarConOdds(est) {
 }
 
 // ── Construye el bloque del partido + decide MANTENER/CAMBIAR ───
+// Calcula el óptimo de CADA polla (puntúan distinto) y evalúa por separado si
+// conviene cambiar en cada una respecto al marcador hoy cargado allí.
 function analizarPartido(p, est0) {
   const fix = reconciliarConOdds(est0);
   const est = { ...est0, lh: fix.lh, la: fix.la, conf: fix.conf };
-  const an = analyze(est.lh, est.la);
-  const curEv = evOf(est.lh, est.la, p.c_h, p.c_a); // EV del pronóstico ya cargado
-  const gain = an.conservative.ev - curEv;
-  const sameAsCurrent = an.conservative.h === p.c_h && an.conservative.a === p.c_a;
-  const cambiar = !sameAsCurrent && gain >= MARGIN && est.conf !== 'Baja';
-  return { p, est, an, curEv, gain, cambiar };
+  const anPG = analyze(est.lh, est.la, 'PG');
+  const anPF = analyze(est.lh, est.la, 'PF');
+  // marcador actual por plataforma (c_pf_* cae a c_* si aún no se separó)
+  const cur = {
+    pg_h: p.c_h, pg_a: p.c_a,
+    pf_h: p.c_pf_h ?? p.c_h, pf_a: p.c_pf_a ?? p.c_a,
+  };
+  const evalPlat = (an, ch, ca, sistema) => {
+    const curEv = ch != null && ca != null ? evOf(est.lh, est.la, ch, ca, sistema) : -Infinity;
+    const gain = an.conservative.ev - curEv;
+    const same = an.conservative.h === ch && an.conservative.a === ca;
+    const cambiar = !same && gain >= MARGIN && est.conf !== 'Baja';
+    return { curEv, gain, same, cambiar };
+  };
+  const pg = evalPlat(anPG, cur.pg_h, cur.pg_a, 'PG');
+  const pf = evalPlat(anPF, cur.pf_h, cur.pf_a, 'PF');
+  const difSeguro =
+    anPG.conservative.h !== anPF.conservative.h || anPG.conservative.a !== anPF.conservative.a;
+  const cambiar = pg.cambiar || pf.cambiar;
+  return { p, est, anPG, anPF, cur, pg, pf, difSeguro, cambiar };
 }
 
+const mk = (h, a) => (h == null || a == null ? '?-?' : `${h}-${a}`);
+
 function lineaPartido(d) {
-  const { p, est, an, gain, cambiar } = d;
-  const c = an.conservative, a = an.aggressive;
+  const { p, est, anPG, anPF, cur, pg, pf, difSeguro, cambiar } = d;
+  const cPG = anPG.conservative, cPF = anPF.conservative, a = anPG.aggressive;
   const rotacion = est.trascendente
     ? ''
     : '\n⚠️ Ojo: hay un equipo ya clasificado o eliminado, podría rotar jugadores.';
-  const top = an.top3.map((t) => `${t.h}-${t.a}`).join(' · ');
-  const reco = cambiar
-    ? `👉 *CAMBIA a ${c.h}-${c.a}*  (ganarías ~${gain.toFixed(1)} pts más que con tu ${p.c_h}-${p.c_a})`
-    : `👉 *DEJA tu ${p.c_h}-${p.c_a}*  (ya es casi lo mejor, no vale la pena cambiar)`;
+  const top = anPG.top3.map((t) => `${t.h}-${t.a}`).join(' · ');
+
+  // Bloque "marcador cargado" — una línea si es igual en ambas, dos si difiere.
+  const cargado = mk(cur.pg_h, cur.pg_a) === mk(cur.pf_h, cur.pf_a)
+    ? `📌 Tu marcador cargado: ${mk(cur.pg_h, cur.pg_a)}`
+    : `📌 Tu marcador cargado:  Predicción Ganadora ${mk(cur.pg_h, cur.pg_a)} · Polla Futbolera ${mk(cur.pf_h, cur.pf_a)}`;
+
+  // Bloque "opción SEGURA" — una línea si coincide, desglosado si las pollas difieren.
+  const segura = difSeguro
+    ? `🛡️ Opción SEGURA (cada polla conviene distinto):\n` +
+      `   • Predicción Ganadora → *${cPG.h}-${cPG.a}*\n` +
+      `   • Polla Futbolera → *${cPF.h}-${cPF.a}*  (aquí el exacto casi no paga; mejor asegurar el resultado)`
+    : `🛡️ Opción SEGURA (ambas pollas): *${cPG.h}-${cPG.a}*`;
+
+  // Recomendación: "seguro" ya carga el óptimo correcto en cada polla.
+  let reco;
+  if (cambiar) {
+    const donde = pg.cambiar && pf.cambiar ? 'mejora en ambas pollas'
+      : pg.cambiar ? 'mejora en Predicción Ganadora'
+      : 'mejora en Polla Futbolera';
+    reco = `👉 *CAMBIA* — responde *${p.id} seguro* (cargo el mejor en cada polla; ${donde})`;
+  } else {
+    reco = `👉 *DEJA tu marcador* (ya está bien en ambas pollas, no vale la pena cambiar)`;
+  }
+
   return (
     `━━━━━━━━━━━━━━\n` +
     `⚽ *[${p.id}] ${p.home} vs ${p.away}*   · confianza en los datos: ${est.conf}${rotacion}\n\n` +
-    `📌 Tu marcador cargado: ${p.c_h}-${p.c_a}\n` +
-    `🛡️ Opción SEGURA: ${c.h}-${c.a}   (≈${c.ev.toFixed(1)} pts en promedio)\n` +
-    `🔥 Opción ARRIESGADA: ${a.h}-${a.a}   (${pct(a.pExact)} de pegarla clavada → 10 pts)\n\n` +
-    `📊 ¿Quién gana?  ${p.home} ${pct(an.probs['1'])} · Empate ${pct(an.probs['X'])} · ${p.away} ${pct(an.probs['2'])}\n` +
+    `${cargado}\n` +
+    `${segura}\n` +
+    `🔥 Opción ARRIESGADA: ${a.h}-${a.a}   (${pct(a.pExact)} de pegarla clavada → 10 pts en Predicción Ganadora)\n\n` +
+    `📊 ¿Quién gana?  ${p.home} ${pct(anPG.probs['1'])} · Empate ${pct(anPG.probs['X'])} · ${p.away} ${pct(anPG.probs['2'])}\n` +
     `🎯 Marcadores más probables: ${top}\n` +
     (est.facts ? `🧠 Dato clave: ${cleanReason(est.facts)}\n` : '') +
     `\n${reco}`
@@ -167,9 +206,9 @@ function buildMensaje(analizados) {
     `\n━━━━━━━━━━━━━━\n` +
     `ℹ️ *Cómo leer esto:*\n` +
     `🛡️ *SEGURA* = el marcador que en promedio te da más puntos. La apuesta sólida y estable.\n` +
-    `🔥 *ARRIESGADA* = el marcador con más chance de acertar EXACTO (vale 10 pts), pero menos probable.\n` +
+    `🔥 *ARRIESGADA* = el marcador con más chance de acertar EXACTO, pero menos probable.\n` +
+    `🏆 *Las dos pollas puntúan distinto:* en Predicción Ganadora clavar el marcador exacto vale 10 pts (premia arriesgar); en Polla Futbolera el exacto solo da 6 y el resultado 4 (mejor asegurar). Por eso a veces te sugiero un marcador *distinto en cada polla*. Cuando respondes "seguro", cargo automáticamente el mejor para cada una.\n` +
     `📊 Los % = qué tan probable es cada cosa.\n` +
-    `"pts en promedio" sirve solo para comparar: mientras más alto, mejor el marcador.\n` +
     `El cálculo es matemático y estable: no te va a cambiar el marcador de un día a otro sin una razón real.`;
   const instructivo = `\n━━━━━━━━━━━━━━\n${AYUDA}`;
   const texto =
@@ -243,12 +282,19 @@ async function main() {
   const nowIso = new Date().toISOString();
   for (const d of analizados) {
     await update(d.p.id, {
-      sug_c_h: d.an.conservative.h, sug_c_a: d.an.conservative.a,
-      sug_a_h: d.an.aggressive.h, sug_a_a: d.an.aggressive.a,
+      sug_c_h: d.anPG.conservative.h, sug_c_a: d.anPG.conservative.a,
+      sug_a_h: d.anPG.aggressive.h, sug_a_a: d.anPG.aggressive.a,
+      sug_pf_c_h: d.anPF.conservative.h, sug_pf_c_a: d.anPF.conservative.a,
+      sug_pf_a_h: d.anPF.aggressive.h, sug_pf_a_a: d.anPF.aggressive.a,
       sug_conf: d.est.conf, sug_reason: d.est.facts, sug_at: nowIso,
     });
   }
   log(`sugerencias guardadas (${analizados.length}).`);
 }
 
-main().catch((e) => { console.error('[refresh] fatal:', e.message); process.exit(1); });
+if (require.main === module) {
+  main().catch((e) => { console.error('[refresh] fatal:', e.message); process.exit(1); });
+}
+
+// Exportados para pruebas (no se ejecuta main al requerir el módulo).
+module.exports = { analizarPartido, lineaPartido, buildMensaje };
