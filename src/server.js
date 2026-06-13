@@ -200,8 +200,12 @@ app.post('/webhook/:token', (req, res) => {
   for (const m of mensajes) {
     const digits = m.remoteJid.replace(/\D/g, '');
     if (m.fromMe || digits !== MI_NUMERO) continue;
-    console.log(`[server] webhook: "${m.texto}" de ${digits}`);
-    enqueue(() => procesarMensaje(m.texto));
+    // Cada línea puede ser un comando independiente (ej. varios códigos en un solo mensaje).
+    const lineas = m.texto.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const linea of lineas) {
+      console.log(`[server] webhook: "${linea}" de ${digits}`);
+      enqueue(() => procesarMensaje(linea));
+    }
   }
 });
 
