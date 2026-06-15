@@ -65,8 +65,39 @@ function enVentanaConcurso(d = new Date()) {
 
 let avisoSinSaldoFecha = ''; // para no repetir el aviso de "sin saldo" muchas veces al día
 
+// Hora ALEATORIA de respuesta (rompe el patrón "siempre a la misma hora") sin perder
+// velocidad: solo cambia A QUÉ HORA del día responde, no qué tan rápido (los 20s siguen
+// al máximo). Cada día elige un minuto objetivo aleatorio (determinístico por fecha) en
+// la ventana [TRIVIA_HORA_INI, TRIVIA_HORA_FIN] (def 06:00–08:50). Antes de esa hora no
+// responde; a partir de ahí responde en el primer sondeo con pregunta disponible. Si la
+// pregunta no apareció aún a esa hora, sigue intentando el resto del día (no la pierde).
+const TRIVIA_HORA_ALEATORIA = (process.env.TRIVIA_HORA_ALEATORIA || 'true') === 'true';
+const hhmmAMin = (s, def) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : def; };
+const TRIVIA_INI_MIN = hhmmAMin(process.env.TRIVIA_HORA_INI, 6 * 60);      // 06:00
+const TRIVIA_FIN_MIN = hhmmAMin(process.env.TRIVIA_HORA_FIN, 8 * 60 + 50); // 08:50
+
+function minutoBogota(d = new Date()) {
+  const s = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  const [h, m] = s.split(':').map(Number);
+  return h * 60 + m;
+}
+// Minuto objetivo de hoy: aleatorio pero estable durante todo el día (semilla = fecha).
+function minutoObjetivoHoy() {
+  const ini = Math.min(TRIVIA_INI_MIN, TRIVIA_FIN_MIN), fin = Math.max(TRIVIA_INI_MIN, TRIVIA_FIN_MIN);
+  let h = 2166136261;
+  for (const c of fechaBogota()) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return ini + (h % (fin - ini + 1));
+}
+
 async function sondearTrivia() {
   if (!enVentanaConcurso()) { console.log('[trivia] fuera de la ventana del concurso, omito.'); return; }
+  if (TRIVIA_HORA_ALEATORIA) {
+    const obj = minutoObjetivoHoy(), ahora = minutoBogota();
+    if (ahora < obj) {
+      console.log(`[trivia] aún no es la hora objetivo de hoy (${Math.floor(obj / 60)}:${String(obj % 60).padStart(2, '0')}); ahora ${Math.floor(ahora / 60)}:${String(ahora % 60).padStart(2, '0')}. Espero.`);
+      return;
+    }
+  }
   try {
     const rep = await intentarResponder({ log: (...a) => console.log('[trivia]', ...a) });
     console.log('[trivia] estado:', rep.estado);
