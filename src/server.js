@@ -49,7 +49,9 @@ if (process.env.RUN_ON_START === 'true') {
 // Sondea unas pocas veces al día durante la ventana del concurso; al detectar una
 // pregunta nueva resuelve y responde en el acto (flujo atómico, fallback siempre envía).
 const TRIVIA_ENABLED = process.env.TRIVIA_ENABLED === 'true';
-const TRIVIA_SCHEDULE = process.env.TRIVIA_SCHEDULE || '0 10,13,16,19 * * *'; // 10am/1pm/4pm/7pm
+// Sondeo frecuente: la pregunta puede aparecer a cualquier hora del día; cada 15 min
+// (6am–11pm Bogotá) la detecta y responde en minutos, sin depender del usuario.
+const TRIVIA_SCHEDULE = process.env.TRIVIA_SCHEDULE || '*/15 6-23 * * *';
 const CONCURSO_INI = '2026-06-11';
 const CONCURSO_FIN = '2026-07-19';
 
@@ -192,6 +194,17 @@ async function procesarPostura() {
   await sendText(postura.bloque([pg, pf], restantes));
 }
 
+// "trivia": dispara el intento de responder la trivia de hoy en el acto (manual / prueba).
+async function procesarTrivia() {
+  await sendText('⏳ Revisando si hay trivia activa ahora...');
+  const rep = await intentarResponder({ log: (...a) => console.log('[trivia]', ...a) });
+  if (rep.estado === 'sin-pregunta') { await sendText('ℹ️ No hay pregunta de trivia activa en este momento. Cuando aparezca, la respondo solo.'); return; }
+  if (rep.estado === 'ya-respondida') { await sendText('👍 La trivia de hoy ya estaba respondida.'); return; }
+  if (rep.estado === 'error') { await sendText(`⚠️ Trivia: hubo un problema (${rep.error}).`); return; }
+  const msg = mensajeResultado(rep);
+  if (msg) await sendText(msg);
+}
+
 async function procesarMensaje(texto) {
   const cmd = parseComando(texto);
   if (!cmd) {
@@ -205,6 +218,10 @@ async function procesarMensaje(texto) {
   }
   if (cmd.type === 'postura') {
     await procesarPostura();
+    return;
+  }
+  if (cmd.type === 'trivia') {
+    await procesarTrivia();
     return;
   }
   if (cmd.type === 'todos') {

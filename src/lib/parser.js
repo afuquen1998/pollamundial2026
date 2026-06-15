@@ -24,6 +24,9 @@ function parseComando(texto) {
   // "postura" (opcionalmente seguido de una palabra) → muestra puesto + postura sugerida.
   if (/^postura\b/.test(t)) return { type: 'postura' };
 
+  // "trivia" → dispara el intento de responder la trivia de hoy en el acto.
+  if (/^trivia\b/.test(t)) return { type: 'trivia' };
+
   let m = t.match(/^todos\s+(seguro|arriesgado)$/);
   if (m) return { type: 'todos', tipo: m[1] };
 
@@ -48,6 +51,7 @@ const AYUDA = [
   'Agrega "futbolera" o "prediccion" al final si quieres una sola web (si no, van las dos).',
   '"todos seguro" o "todos arriesgado" carga esa opción en todos los partidos de hoy.',
   '• "postura" → te digo en qué puesto vas y qué conviene (atacar/proteger/equilibrado).',
+  '• "trivia" → respondo la trivia de hoy ya mismo (si está activa).',
 ].join('\n');
 
 module.exports = { parseComando, normalizar, AYUDA };

@@ -86,6 +86,7 @@ async function intentarResponder({ log = () => {} } = {}) {
     await registrar({
       cod: String(preg.cod), sec: String(preg.sec || ''), fecha: fechaIso(),
       pregunta: preg.pregunta.slice(0, 500), id_respuesta: String(idRespuesta), acierto: resultado.acierto,
+      html: String(preg.html || '').slice(0, 60000), // HTML crudo para depurar el parser
     });
   } catch (e) { log('no se pudo registrar en trivia_log:', e.message); }
 
