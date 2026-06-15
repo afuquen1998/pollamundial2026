@@ -65,25 +65,48 @@ function parseTrivia(html) {
   return { sec, cod, pregunta, opciones, segundos, html };
 }
 
-// GET /trivia.asp y parsea. ⚠️ QUEMA LA VISTA si hay pregunta → llamar solo cuando
-// se vaya a responder en el acto. Devuelve null si no hay pregunta activa.
-async function hayPregunta(jar) {
+// Estado de la trivia SIN quemar la vista. GET /trivia.asp (la intro/lanzador).
+// La pregunta NO está aquí: el botón "Clic aquí para iniciar" lleva a preguntas-trivia.asp.
+// Devuelve { disponible, sec, cod }: disponible=true si hay una pregunta lista para iniciar.
+// Los sec/cod salen del enlace del menú (trivia.asp?sec=N&cod=M). SEGURO de llamar a menudo.
+async function estadoTrivia(jar) {
   const res = await fetchWithJar(jar, `${BASE}/trivia.asp`);
+  const html = await res.text();
+  const sc = html.match(/trivia\.asp\?sec=(\d+)&(?:amp;)?cod=(\d+)/i);
+  const lanzador = /lanzador-trivia|preguntas-trivia\.asp/i.test(html);
+  return { disponible: !!(lanzador && sc), sec: sc ? sc[1] : null, cod: sc ? sc[2] : null, html };
+}
+
+// Carga la pregunta REAL desde preguntas-trivia.asp?sec=&cod=. ⚠️ ESTO ARRANCA LOS 20s
+// (un solo tiro). Llamar solo cuando se vaya a responder en el acto. Devuelve el objeto
+// de parseTrivia o null si no se pudo parsear.
+async function cargarPregunta(jar, sec, cod) {
+  const url = `${BASE}/preguntas-trivia.asp?sec=${encodeURIComponent(sec)}&cod=${encodeURIComponent(cod)}`;
+  const res = await fetchWithJar(jar, url);
   const html = await res.text();
   return parseTrivia(html);
 }
 
+// Compat: detecta y carga la pregunta (QUEMA la vista si hay una). null si no hay.
+async function hayPregunta(jar) {
+  const est = await estadoTrivia(jar);
+  if (!est.disponible) return null;
+  return cargarPregunta(jar, est.sec, est.cod);
+}
+
 // Envía la respuesta: GET /resultado-trivia.asp?sec=&cod=&r=<idRespuesta>&t=<segundos_restantes>.
 // Devuelve { ok, acierto, texto }. `acierto` puede ser null si no se logra detectar.
+// Detección: se chequean primero las señales de ERROR (para no confundir "la respuesta
+// correcta era..." con un acierto), luego las de acierto.
 async function responder(jar, { sec, cod, idRespuesta, t }) {
   const qs = new URLSearchParams({ sec: String(sec ?? ''), cod: String(cod ?? ''), r: String(idRespuesta), t: String(t ?? 0) });
   const res = await fetchWithJar(jar, `${BASE}/resultado-trivia.asp?${qs.toString()}`);
   const html = await res.text();
   const txt = limpiar(html).toLowerCase();
   let acierto = null;
-  if (/correct|acertaste|felicit|¡bien|respuesta correcta/i.test(txt)) acierto = true;
-  else if (/incorrect|errad|fallaste|lo sentimos|respuesta correcta era|no acertaste/i.test(txt)) acierto = false;
+  if (/incorrect|errad|no acertaste|fallaste|lo sentimos|correcta era|correcta es|la respuesta correcta/i.test(txt)) acierto = false;
+  else if (/correcto|acertaste|felicit|muy bien|¡bien|respuesta correcta/i.test(txt)) acierto = true;
   return { ok: res.ok, acierto, texto: txt.slice(0, 200) };
 }
 
-module.exports = { hayPregunta, responder, parseTrivia, createJar, login };
+module.exports = { estadoTrivia, cargarPregunta, hayPregunta, responder, parseTrivia, createJar, login };

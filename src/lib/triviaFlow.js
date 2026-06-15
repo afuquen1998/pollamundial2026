@@ -45,21 +45,38 @@ async function intentarResponder({ log = () => {} } = {}) {
   await trivia.login(jar);
   log('login OK. Consultando trivia.asp...');
 
-  const t0 = Date.now();
-  let preg;
+  // 1) Estado SIN quemar la vista (trivia.asp = intro/lanzador). Saca sec/cod del menú.
+  let est;
   try {
-    preg = await trivia.hayPregunta(jar);
+    est = await trivia.estadoTrivia(jar);
   } catch (e) {
     return { estado: 'error', error: `al leer trivia.asp: ${e.message}` };
   }
-  if (!preg) return { estado: 'sin-pregunta' };
+  if (!est.disponible) return { estado: 'sin-pregunta' };
+
+  // 2) ¿Ya respondida hoy? Se sabe por el cod ANTES de quemar la vista.
+  if (await yaRespondida(est.cod)) return { estado: 'ya-respondida', cod: est.cod };
+
+  // 2.5) ¿Hay saldo en OpenAI? Si no, NO quemar la pregunta (la responderá un próximo
+  //      intento cuando haya saldo). Evita gastar el intento del día en un fallback.
+  if (!(await solver.disponible())) return { estado: 'sin-saldo', cod: est.cod };
+
+  // 3) Cargar la pregunta REAL (preguntas-trivia.asp) → ESTO ARRANCA LOS 20s.
+  const t0 = Date.now();
+  let preg;
+  try {
+    preg = await trivia.cargarPregunta(jar, est.sec, est.cod);
+  } catch (e) {
+    return { estado: 'error', error: `al cargar preguntas-trivia.asp: ${e.message}` };
+  }
+  if (!preg || !preg.opciones.length) {
+    return { estado: 'error', error: 'no pude parsear la pregunta', cod: est.cod };
+  }
 
   guardarHtml(preg.html);
   log(`PREGUNTA: ${preg.pregunta}`);
   preg.opciones.forEach((o, i) => log(`  ${i + 1}) [id=${o.id}] ${o.texto}`));
   log(`sec=${preg.sec} cod=${preg.cod} segundos=${preg.segundos}`);
-
-  if (await yaRespondida(preg.cod)) return { estado: 'ya-respondida', pregunta: preg.pregunta, cod: preg.cod };
 
   // Resolver (IA) con fallback a la 1ª opción.
   let idRespuesta, indice, razon, fuente, ms = null;

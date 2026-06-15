@@ -60,4 +60,16 @@ async function solve(pregunta, opciones, { timeoutMs = TIMEOUT_MS } = {}) {
   return { idRespuesta: opciones[indice].id, indice, razon, ms: Date.now() - t0 };
 }
 
-module.exports = { solve, buildInput, parseEleccion, SYSTEM };
+// ¿Hay saldo/cuota en OpenAI? Llamada mínima para saberlo ANTES de abrir la pregunta
+// (no quemar la vista si la IA no va a poder responder). true salvo que sea "sin saldo".
+async function disponible() {
+  try {
+    await respond({ system: 'Responde OK.', input: 'ping', webSearch: false, effort: 'minimal', maxOutputTokens: 50 });
+    return true;
+  } catch (e) {
+    if (/insufficient_quota|sin saldo/i.test(e.message)) return false;
+    return true; // error transitorio/incompleto → no bloquear; el solve real tiene fallback
+  }
+}
+
+module.exports = { solve, disponible, buildInput, parseEleccion, SYSTEM };

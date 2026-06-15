@@ -63,6 +63,8 @@ function enVentanaConcurso(d = new Date()) {
   return f >= CONCURSO_INI && f <= CONCURSO_FIN;
 }
 
+let avisoSinSaldoFecha = ''; // para no repetir el aviso de "sin saldo" muchas veces al día
+
 async function sondearTrivia() {
   if (!enVentanaConcurso()) { console.log('[trivia] fuera de la ventana del concurso, omito.'); return; }
   try {
@@ -71,6 +73,14 @@ async function sondearTrivia() {
     if (rep.estado === 'respondida') {
       const msg = mensajeResultado(rep);
       if (msg) await sendText(msg);
+    } else if (rep.estado === 'sin-saldo') {
+      // Hay trivia disponible pero OpenAI no tiene saldo → NO se quemó la pregunta.
+      // Avisar 1 vez/día; en cuanto haya saldo, el próximo tick la responde.
+      const hoy = fechaBogota();
+      if (avisoSinSaldoFecha !== hoy) {
+        avisoSinSaldoFecha = hoy;
+        await sendText('⚠️ Hay trivia disponible HOY, pero tu OpenAI está *sin saldo*. Recarga en platform.openai.com → Billing y la respondo sola en minutos (no se ha perdido la pregunta).');
+      }
     } else if (rep.estado === 'error') {
       await sendText(`⚠️ Trivia: hubo un problema al responder (${rep.error}). Revisa manual si quieres.`);
     }
@@ -200,6 +210,7 @@ async function procesarTrivia() {
   const rep = await intentarResponder({ log: (...a) => console.log('[trivia]', ...a) });
   if (rep.estado === 'sin-pregunta') { await sendText('ℹ️ No hay pregunta de trivia activa en este momento. Cuando aparezca, la respondo solo.'); return; }
   if (rep.estado === 'ya-respondida') { await sendText('👍 La trivia de hoy ya estaba respondida.'); return; }
+  if (rep.estado === 'sin-saldo') { await sendText('⚠️ Hay trivia disponible, pero tu OpenAI está *sin saldo*. Recarga en platform.openai.com → Billing y vuelve a escribir "trivia" (no se perdió la pregunta).'); return; }
   if (rep.estado === 'error') { await sendText(`⚠️ Trivia: hubo un problema (${rep.error}).`); return; }
   const msg = mensajeResultado(rep);
   if (msg) await sendText(msg);

@@ -30,6 +30,11 @@ async function respond({ system, input, webSearch = true, maxOutputTokens = 1000
       body: JSON.stringify(body),
     });
     json = await res.json();
+    // Sin saldo/cuota: es permanente, NO reintentar (no malgastar los 20s de la trivia).
+    const code = json.error && json.error.code;
+    if (res.status === 429 && code === 'insufficient_quota') {
+      throw new Error('OpenAI sin saldo (insufficient_quota): recarga créditos en platform.openai.com → Billing.');
+    }
     if (res.status === 429 && intento < 4) {
       const msg = (json.error && json.error.message) || '';
       const m = msg.match(/try again in ([\d.]+)s/i);
