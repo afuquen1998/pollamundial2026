@@ -84,6 +84,10 @@ async function cargarPregunta(jar, sec, cod) {
   const url = `${BASE}/preguntas-trivia.asp?sec=${encodeURIComponent(sec)}&cod=${encodeURIComponent(cod)}`;
   const res = await fetchWithJar(jar, url);
   const html = await res.text();
+  // Si la pregunta del día ya fue lanzada/respondida, el server avisa en vez de mostrarla.
+  if (/ya lanzaste la pregunta|no es posible responder la trivia|ya respondiste/i.test(limpiar(html).toLowerCase())) {
+    return { yaLanzada: true, html };
+  }
   return parseTrivia(html);
 }
 
