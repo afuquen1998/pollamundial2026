@@ -51,7 +51,7 @@ if (process.env.RUN_ON_START === 'true') {
 const TRIVIA_ENABLED = process.env.TRIVIA_ENABLED === 'true';
 // Sondeo frecuente: la pregunta puede aparecer a cualquier hora del día; cada 15 min
 // (6am–11pm Bogotá) la detecta y responde en minutos, sin depender del usuario.
-const TRIVIA_SCHEDULE = process.env.TRIVIA_SCHEDULE || '*/15 6-23 * * *';
+const TRIVIA_SCHEDULE = process.env.TRIVIA_SCHEDULE || '*/10 6-23 * * *';
 const CONCURSO_INI = '2026-06-11';
 const CONCURSO_FIN = '2026-07-19';
 
@@ -74,7 +74,7 @@ let avisoSinSaldoFecha = ''; // para no repetir el aviso de "sin saldo" muchas v
 const TRIVIA_HORA_ALEATORIA = (process.env.TRIVIA_HORA_ALEATORIA || 'true') === 'true';
 const hhmmAMin = (s, def) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : def; };
 const TRIVIA_INI_MIN = hhmmAMin(process.env.TRIVIA_HORA_INI, 6 * 60);      // 06:00
-const TRIVIA_FIN_MIN = hhmmAMin(process.env.TRIVIA_HORA_FIN, 8 * 60 + 50); // 08:50
+const TRIVIA_FIN_MIN = hhmmAMin(process.env.TRIVIA_HORA_FIN, 8 * 60 + 40); // 08:40 (con sondeo */10 → responde a más tardar 8:40, siempre antes de las 9)
 
 function minutoBogota(d = new Date()) {
   const s = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
