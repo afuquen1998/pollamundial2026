@@ -15,16 +15,17 @@ const { rest } = require('./supabase');
 
 const fechaIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
-async function yaRespondida(cod) {
-  if (!cod) return false;
+// ¿Ya respondimos HOY? La clave es la FECHA (el cod de la trivia es estático=13, no
+// identifica el día). 1 respuesta por día.
+async function yaRespondida(fecha) {
   try {
-    const r = await rest(`trivia_log?select=cod&cod=eq.${encodeURIComponent(cod)}`);
+    const r = await rest(`trivia_log?select=fecha&fecha=eq.${encodeURIComponent(fecha)}`);
     return Array.isArray(r) && r.length > 0;
   } catch { return false; }
 }
 
 async function registrar(fila) {
-  await rest('trivia_log?on_conflict=cod', {
+  await rest('trivia_log?on_conflict=fecha', {
     method: 'POST', body: [fila],
     headers: { prefer: 'resolution=merge-duplicates,return=minimal' },
   });
@@ -54,8 +55,8 @@ async function intentarResponder({ log = () => {} } = {}) {
   }
   if (!est.disponible || !est.cod) return { estado: 'sin-pregunta' };
 
-  // 2) ¿Ya respondida hoy? (trivia_log, por cod) — ANTES de lanzar nada.
-  if (await yaRespondida(est.cod)) return { estado: 'ya-respondida', cod: est.cod };
+  // 2) ¿Ya respondida HOY? (trivia_log, por FECHA) — ANTES de lanzar nada.
+  if (await yaRespondida(fechaIso())) return { estado: 'ya-respondida', cod: est.cod };
 
   // 2.5) ¿Hay saldo en OpenAI? Si no, NO lanzar la pregunta (la responderá un próximo
   //      intento cuando haya saldo). Evita gastar el intento del día en un fallback.
