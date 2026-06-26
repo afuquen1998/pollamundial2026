@@ -173,7 +173,7 @@ function lineaPartido(d) {
   const segura = difSeguro
     ? `🛡️ Opción SEGURA (cada polla conviene distinto):\n` +
       `   • Predicción Ganadora → *${cPG.h}-${cPG.a}*\n` +
-      `   • Polla Futbolera → *${cPF.h}-${cPF.a}*  (aquí el exacto casi no paga; mejor asegurar el resultado)`
+      `   • Polla Futbolera → *${cPF.h}-${cPF.a}*  (aquí el exacto paga 10 pts; conviene cazar el marcador exacto)`
     : `🛡️ Opción SEGURA (ambas pollas): *${cPG.h}-${cPG.a}*`;
 
   // Recomendación: "seguro" ya carga el óptimo correcto en cada polla.
@@ -210,7 +210,7 @@ function buildMensaje(analizados, rankingBlock = '') {
     `ℹ️ *Cómo leer esto:*\n` +
     `🛡️ *SEGURA* = el marcador que en promedio te da más puntos. La apuesta sólida y estable.\n` +
     `🔥 *ARRIESGADA* = el marcador con más chance de acertar EXACTO, pero menos probable.\n` +
-    `🏆 *Las dos pollas puntúan distinto:* en Predicción Ganadora clavar el marcador exacto vale 10 pts (premia arriesgar); en Polla Futbolera el exacto solo da 6 y el resultado 4 (mejor asegurar). Por eso a veces te sugiero un marcador *distinto en cada polla*. Cuando respondes "seguro", cargo automáticamente el mejor para cada una.\n` +
+    `🏆 *Las dos pollas premian el exacto (10 pts):* en Predicción Ganadora son 6 del resultado + 4 del exacto; en Polla Futbolera son 6 del exacto + 2 por cada gol acertado. En PF el resultado solo paga 4, así que cazar el exacto rinde aún más. En ambas vale la pena ir por el marcador exacto del favorito. Cuando respondes "seguro", cargo automáticamente el mejor para cada una.\n` +
     `📊 Los % = qué tan probable es cada cosa.\n` +
     `El cálculo es matemático y estable: no te va a cambiar el marcador de un día a otro sin una razón real.`;
   const instructivo = `\n━━━━━━━━━━━━━━\n${AYUDA}`;

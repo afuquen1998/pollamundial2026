@@ -14,13 +14,17 @@
 //     +2 acertar UN solo marcador (aunque falles el resultado)
 //     → marcador exacto = 6+4 = 10 pts (el jackpot que gana pollas)
 //
-//   PF = Polla Futbolera (ESCALONADO, se toma el mejor acierto, máx 6):
-//     6  marcador exacto
-//     4  resultado del partido (sin importar los goles)
-//     2  goles de un equipo (local ó visitante, por separado)
-//     0  sin acierto
-//     → en PF clavar el exacto solo gana 6 vs 4 del resultado: arriesgar rinde poco.
-//       El óptimo de PF tiende al resultado más probable del favorito, no al modal exacto.
+//   PF = Polla Futbolera (tabla real del reglamento, confirmada y despejada de la
+//        tabla de posiciones 2026-06-26: Pts = 6·ME + 4·AR + 2·ML + 2·MV, donde la
+//        columna AR cuenta SOLO los resultados que NO fueron exactos):
+//     6  marcador exacto (nivel; EXCLUYENTE con "resultado")
+//     4  resultado del partido (1/X/2) cuando NO es exacto
+//     2  goles del equipo LOCAL acertados   (se suman aparte, también en exactos)
+//     2  goles del equipo VISITANTE acertados
+//     → clavar el exacto = 6 + 2 + 2 = 10 pts (igual que PG). El exacto paga MUCHO.
+//       Como el "resultado" pesa menos que en PG (4 vs 6), arriesgar al exacto rinde
+//       relativamente MÁS en PF. El óptimo tiende al modal exacto del favorito.
+//       (Antes se creía escalonado/máx 6 → era un error que subvaloraba arriesgar.)
 //
 // Casi todo el motor (matriz Poisson, top-3, 1X2) es genérico; solo cambia la
 // FUNCIÓN DE PUNTAJE de un marcador según el sistema. analyze/ev/evOf reciben
@@ -68,10 +72,14 @@ function puntosPred(ph, pa, h, a, sistema = 'PG') {
   const res = outcome(h, a) === outcome(ph, pa);
   const one = (h === ph) !== (a === pa); // exactamente un dígito coincide
   if (sistema === 'PF') {
-    if (exact) return 6;
-    if (res) return 4;
-    if (one) return 2;
-    return 0;
+    // exacto(6) y resultado(4) son EXCLUYENTES; los goles de cada equipo (2+2)
+    // se suman aparte (también cuando el marcador es exacto).
+    let p = 0;
+    if (exact) p += 6;       // marcador exacto
+    else if (res) p += 4;    // resultado sin ser exacto
+    if (h === ph) p += 2;    // goles del local
+    if (a === pa) p += 2;    // goles del visitante
+    return p;                // exacto = 6+2+2 = 10
   }
   // PG (aditivo, por defecto)
   let p = 0;

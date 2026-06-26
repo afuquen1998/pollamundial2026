@@ -3,8 +3,8 @@
 //
 // PROTEGER  → vas 1.º y quedan pocos partidos: minimiza varianza (todo SEGURA).
 // EQUILIBRADO → top 3 con brecha chica: SEGURA + alguna ARRIESGADA selectiva.
-// ATACAR    → fuera del top 3 / brecha grande: busca puntos (cazar exactos en PG;
-//             resultados a contracorriente en PF, donde el exacto paga poco).
+// ATACAR    → fuera del top 3 / brecha grande: busca puntos cazando marcadores
+//             exactos en AMBAS pollas (en PF el exacto paga 14, aún más que en PG).
 // CONSTRUIR → aún faltan muchos partidos: juega lo óptimo (SEGURA casi siempre),
 //             no regales puntos; ya habrá tiempo de atacar o proteger.
 
@@ -20,7 +20,7 @@ function sugerir(plat, restantes) {
 
   const esPF = plat.plataforma === 'PF';
   const notaPF = esPF
-    ? ' En esta polla el exacto paga poco (6 vs 4 del resultado): arriesgar = elegir resultados a contracorriente, no marcadores raros.'
+    ? ' En esta polla clavar el exacto vale 10 pts (6 exacto + 2 por cada gol acertado) y el resultado solo 4: arriesgar al exacto rinde aún más que en PG, y el desempate premia tener más exactos.'
     : ' En esta polla clavar el exacto vale 10 pts: sí vale cazar marcadores exactos.';
 
   const explica = {
