@@ -47,35 +47,56 @@ async function login(jar) {
   return true;
 }
 
-// GET partidos.asp?tc=t y parsea los enlaces predecir.asp?id=N&tc=t&el=LOCAL&ev=VISITANTE.
+// GET partidos.asp?tc=t y parsea los enlaces de predicción. Soporta las dos URLs:
+//   - predecir.asp?id=N&tc=t&el=LOCAL&ev=VISITANTE            (fase de grupos)
+//   - predecir-con-penaltis.asp?id=N&...                       (eliminatorias)
+// En eliminatorias el form trae además penaltis-local/visitante → flag `penaltis`.
 async function listPartidos(jar) {
   const res = await fetchWithJar(jar, `${BASE}/partidos.asp?tc=t`);
   const html = await res.text();
-  const re = /predecir\.asp\?id=(\d+)&(?:amp;)?tc=t&(?:amp;)?el=([^&"]+)&(?:amp;)?ev=([^&"]+)/g;
+  const re = /predecir(-con-penaltis)?\.asp\?id=(\d+)&(?:amp;)?tc=t&(?:amp;)?el=([^&"]+)&(?:amp;)?ev=([^&"]+)/g;
   const out = [];
   let m;
   while ((m = re.exec(html))) {
-    out.push({ id: Number(m[1]), home: decodeEntities(m[2]), away: decodeEntities(m[3]) });
+    out.push({
+      id: Number(m[2]),
+      home: decodeEntities(m[3]),
+      away: decodeEntities(m[4]),
+      penaltis: !!m[1],
+    });
   }
   return out;
 }
 
-// POST predecir.asp?id=N con el marcador. Hace falta un GET previo a la misma
-// URL (abre el "plazo" de la predicción en sesión); sin él el POST responde
-// con un redirect a plazo-vencido.asp aunque el partido siga abierto.
+// POST con el marcador. Hace falta un GET previo a la misma URL (abre el "plazo"
+// de la predicción en sesión); sin él el POST redirige a plazo-vencido.asp aunque
+// el partido siga abierto. En eliminatorias (partido.penaltis) la página es
+// predecir-con-penaltis.asp y el form pide además penaltis-local/visitante: se
+// PRESERVAN los penaltis ya cargados (se leen del GET); si están vacíos se usa un
+// default (PG_PENALTIS_DEFAULT, p.ej. "4-3"). Los penaltis no afectan el marcador
+// del tiempo reglamentario; son un bonus independiente del reglamento de PG.
 async function setMarcador(jar, partido, gh, ga) {
-  const { id, home, away } = partido;
-  const url = `${BASE}/predecir.asp?id=${id}&tc=t&el=${encodeURIComponent(home)}&ev=${encodeURIComponent(away)}`;
-  await fetchWithJar(jar, url);
-  const body = new URLSearchParams({
+  const { id, home, away, penaltis } = partido;
+  const page = penaltis ? 'predecir-con-penaltis.asp' : 'predecir.asp';
+  const url = `${BASE}/${page}?id=${id}&tc=t&el=${encodeURIComponent(home)}&ev=${encodeURIComponent(away)}`;
+  const getHtml = await (await fetchWithJar(jar, url)).text();
+
+  const fields = {
     'marcador-local': String(gh),
     'marcador-visitante': String(ga),
     hdnEnviado: 'S',
-  });
+  };
+  if (penaltis) {
+    const cur = (n) => (getHtml.match(new RegExp(`id="penaltis-${n}"[^>]*value="(\\d*)"`, 'i')) || [])[1];
+    const [defL, defV] = (process.env.PG_PENALTIS_DEFAULT || '4-3').split('-');
+    fields['penaltis-local'] = cur('local') || defL || '4';
+    fields['penaltis-visitante'] = cur('visitante') || defV || '3';
+  }
+
   const res = await fetchWithJar(jar, url, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body,
+    body: new URLSearchParams(fields),
   });
   const text = await res.text();
   if (!/GUARDADA CORRECTAMENTE/i.test(text)) {
