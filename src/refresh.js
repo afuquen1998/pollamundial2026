@@ -19,6 +19,7 @@ const { analyze, evOf } = require('./lib/scoring');
 const { AYUDA } = require('./lib/parser');
 const ranking = require('./lib/publishers/ranking');
 const postura = require('./lib/postura');
+const knockouts = require('./lib/knockouts');
 
 const DRY = process.argv.includes('--dry-run');
 // Si WINDOW_HOURS está seteado, se usa esa ventana fija (modo viejo, para pruebas).
@@ -239,6 +240,19 @@ async function main() {
     if (!DRY) for (const p of pasados) await update(p.id, { cerrado: true });
   }
 
+  // 1.5 auto-carga de equipos de eliminatorias desde el fixture (cuando ya se definen).
+  // Así no depende de cargarlos a mano; si carga una ronda nueva, se avisa por WhatsApp.
+  let nuevos = [];
+  if (!DRY) {
+    try { nuevos = await knockouts.sincronizar({ log }); }
+    catch (e) { log('sync knockouts falló (sigo):', e.message); }
+  }
+  const avisoNuevos = nuevos.length
+    ? `🆕 *Equipos cargados automáticamente* (nueva ronda):\n` +
+      nuevos.map((n) => `• [${n.id}] ${n.home} vs ${n.away}`).join('\n') +
+      `\nLos analizaré en su día. Si quieres, ya puedes responder "${nuevos[0].id} seguro".\n`
+    : '';
+
   // 2. ventana
   const rowsRaw = await select(
     `select=*&cerrado=eq.false&kickoff=gt.${ahora.toISOString()}&kickoff=lte.${limite.toISOString()}&order=kickoff`
@@ -251,7 +265,14 @@ async function main() {
   const etiquetaVentana = WINDOW_HOURS ? `${WINDOW_HOURS}h` : 'hoy';
   log(`ventana ${etiquetaVentana}: ${rows.length} partidos → ${rows.map((r) => r.id).join(',') || '(ninguno)'}` +
     (saltados ? ` | ${saltados} con equipos por definir (ignorados)` : ''));
-  if (!rows.length) { log('nada que analizar. Fin.'); return; }
+  if (!rows.length) {
+    if (avisoNuevos) {
+      log('sin partidos hoy, pero cargué equipos nuevos → aviso.');
+      if (!DRY) await sendText(`🔔 *Polla Mundial 2026*\n\n${avisoNuevos}`);
+    }
+    log('nada que analizar. Fin.');
+    return;
+  }
 
   // 3-5. estimaciones (ensemble) + motor determinista
   let estimaciones;
@@ -288,7 +309,8 @@ async function main() {
     log('bloque ranking falló (sigo sin él):', e.message);
   }
 
-  const { texto, nCambios } = buildMensaje(analizados, rankingBlock);
+  const { texto: textoBase, nCambios } = buildMensaje(analizados, rankingBlock);
+  const texto = avisoNuevos ? `${avisoNuevos}━━━━━━━━━━━━━━\n${textoBase}` : textoBase;
   log(`analizados: ${analizados.length} | sugerencias de cambio: ${nCambios}`);
 
   // 6-7. enviar + guardar
